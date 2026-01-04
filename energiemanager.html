@@ -1,0 +1,3067 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Stadtwerke Energiemanager</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --solar-gold: #FFB800;
+      --water-blue: #0077B6;
+      --wind-teal: #00B4A6;
+      --fire-orange: #FF6B35;
+      --leaf-green: #2D9D3A;
+      --bg-dark: #0F1419;
+      --bg-card: #1A2332;
+      --bg-card-hover: #243447;
+      --text-primary: #F7F9FC;
+      --text-secondary: #8899A8;
+      --text-muted: #5C6E7E;
+      --positive: #00D26A;
+      --negative: #FF4757;
+      --warning: #FFB800;
+      --phone-bg: #0a0a15;
+      --phone-card: #1a1a2e;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { 
+      font-family: 'DM Sans', sans-serif; 
+      background: var(--bg-dark); 
+      color: var(--text-primary); 
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    .rotate-hint {
+      display: none;
+      position: fixed; inset: 0;
+      background: var(--bg-dark);
+      z-index: 9999;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 20px;
+    }
+    .rotate-hint .icon { font-size: 64px; animation: rotate-phone 2s infinite; }
+    @keyframes rotate-phone { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(90deg); } }
+
+    @media (max-width: 900px) and (orientation: portrait) {
+      .rotate-hint { display: flex; }
+      .game-container, .phone-fullscreen { display: none !important; }
+    }
+
+    .phone-fullscreen {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #0f0f23 100%);
+      padding: 20px;
+    }
+    
+    .phone-device {
+      width: 340px;
+      background: linear-gradient(145deg, #2d2d44, #1a1a2e);
+      border-radius: 44px;
+      padding: 10px;
+      box-shadow: 0 25px 80px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.1);
+    }
+    .phone-device.vibrating { animation: vibrate 0.15s linear infinite; }
+    @keyframes vibrate {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-2px) rotate(-0.5deg); }
+      75% { transform: translateX(2px) rotate(0.5deg); }
+    }
+    
+    .phone-screen-inner {
+      background: var(--phone-bg);
+      border-radius: 36px;
+      height: 680px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .phone-notch {
+      position: absolute;
+      top: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100px;
+      height: 26px;
+      background: #1a1a2e;
+      border-radius: 14px;
+      z-index: 10;
+    }
+    
+    .phone-status-bar {
+      display: flex;
+      justify-content: space-between;
+      padding: 12px 24px 0;
+      font-size: 0.85rem;
+      color: rgba(255,255,255,0.8);
+    }
+    
+    .phone-time-display { text-align: center; padding: 16px 0 8px; }
+    .phone-time-display .time { font-size: 4rem; font-weight: 200; color: white; letter-spacing: -3px; }
+    .phone-time-display .date { font-size: 1rem; color: rgba(255,255,255,0.6); margin-top: 2px; }
+
+    .missed-calls-banner {
+      background: rgba(255,71,87,0.15);
+      border: 1px solid rgba(255,71,87,0.4);
+      border-radius: 12px;
+      padding: 10px 16px;
+      margin: 8px 20px;
+      text-align: center;
+      color: #ff6b7a;
+      font-size: 0.85rem;
+    }
+    .missed-calls-banner strong { display: block; font-size: 1rem; color: #ff4757; margin-bottom: 2px; }
+    
+    .incoming-call {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 20px;
+    }
+    .caller-avatar {
+      width: 100px; height: 100px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #4a9eff, #0066cc);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 48px;
+      margin-bottom: 16px;
+      animation: pulse-ring 1.5s ease-out infinite;
+    }
+    @keyframes pulse-ring {
+      0% { box-shadow: 0 0 0 0 rgba(74, 158, 255, 0.7); }
+      70% { box-shadow: 0 0 0 25px rgba(74, 158, 255, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(74, 158, 255, 0); }
+    }
+    .caller-label { font-size: 0.85rem; color: rgba(255,255,255,0.5); margin-bottom: 6px; }
+    .caller-name { font-size: 1.6rem; font-weight: 600; color: white; }
+    
+    .call-actions { display: flex; gap: 60px; justify-content: center; padding: 30px 0 36px; }
+    .call-btn-wrapper { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .call-btn {
+      width: 70px; height: 70px;
+      border-radius: 50%;
+      border: none;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .call-btn:hover { transform: scale(1.1); }
+    .call-btn.answer { background: linear-gradient(135deg, #00d26a, #00a854); box-shadow: 0 4px 20px rgba(0, 210, 106, 0.4); }
+    .call-btn.decline { background: linear-gradient(135deg, #ff4757, #ff3344); box-shadow: 0 4px 20px rgba(255, 71, 87, 0.4); }
+    .call-btn-label { font-size: 0.75rem; color: rgba(255,255,255,0.6); }
+
+    .phone-content { flex: 1; padding: 16px 20px; overflow-y: auto; }
+    .phone-content h2 { text-align: center; font-size: 1.3rem; margin-bottom: 6px; }
+    .phone-content .subtitle { text-align: center; color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 20px; }
+    
+    .name-input-group { margin-bottom: 20px; }
+    .name-input-group label { display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 6px; }
+    .name-input {
+      width: 100%;
+      background: var(--phone-card);
+      border: 2px solid transparent;
+      border-radius: var(--radius-md);
+      padding: 12px 16px;
+      color: white;
+      font-size: 1rem;
+      font-family: inherit;
+    }
+    .name-input:focus { outline: none; border-color: var(--wind-teal); }
+    .name-input::placeholder { color: var(--text-muted); }
+    
+    .diff-options { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+    .diff-option {
+      background: var(--phone-card);
+      border: 2px solid transparent;
+      border-radius: var(--radius-lg);
+      padding: 14px;
+      cursor: pointer;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .diff-option:hover { background: #252542; }
+    .diff-option.selected { border-color: var(--wind-teal); background: rgba(0,180,166,0.1); }
+    .diff-option .emoji { font-size: 28px; }
+    .diff-option .info { flex: 1; }
+    .diff-option .name { font-weight: 600; font-size: 0.95rem; }
+    .diff-option .desc { font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px; }
+    
+    .start-game-btn {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, var(--wind-teal), var(--water-blue));
+      border: none;
+      border-radius: var(--radius-lg);
+      color: white;
+      font-size: 1.05rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .start-game-btn:hover { transform: scale(1.02); }
+
+    .intro-message {
+      background: rgba(255,255,255,0.05);
+      border-radius: 16px;
+      padding: 14px;
+      margin-bottom: 10px;
+      border-left: 3px solid var(--wind-teal);
+    }
+    .intro-message p { color: rgba(255,255,255,0.9); line-height: 1.5; font-size: 0.85rem; margin: 0; }
+    .intro-message.warning { border-left-color: var(--warning); }
+    .intro-message.danger { border-left-color: var(--fire-orange); }
+    .intro-message.info { border-left-color: var(--water-blue); }
+
+    .game-container { display: flex; height: 100vh; overflow: hidden; }
+
+    .city-panel {
+      flex: 1;
+      position: relative;
+      background: #0a0a15;
+      overflow: hidden;
+    }
+
+    .city-scroll {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 65px; /* Space for bilanz-bar */
+      overflow-x: auto;
+      overflow-y: hidden;
+      cursor: grab;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      z-index: 2; /* Above weather layer */
+    }
+    .city-scroll::-webkit-scrollbar { display: none; }
+    .city-scroll.dragging { cursor: grabbing; }
+    
+    .city-image-wrapper {
+      position: relative;
+      height: 100%;
+      display: inline-block;
+    }
+    
+    .village-bg {
+      position: relative;
+      height: 100%;
+      width: auto;
+      display: block;
+      user-select: none;
+      -webkit-user-drag: none;
+      pointer-events: none;
+      z-index: 1; /* Above sky-layer */
+    }
+    
+    .city-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 2; /* Above village-bg */
+    }
+    
+    .night-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(10, 15, 40, 0);
+      pointer-events: none;
+      transition: background 0.5s ease;
+    }
+    
+    .night-tint {
+      position: absolute;
+      inset: 0;
+      background: rgba(30, 50, 100, 0);
+      mix-blend-mode: overlay;
+      pointer-events: none;
+      transition: background 0.5s ease;
+    }
+    
+    .moon {
+      position: absolute;
+      top: 30px;
+      right: 80px;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #fffde8 0%, #f5f0c4 50%, #e8e0a0 100%);
+      box-shadow: 0 0 30px 10px rgba(255, 253, 232, 0.3);
+      opacity: 0;
+      transition: opacity 0.5s ease;
+      pointer-events: none;
+    }
+    
+    .lights-container {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+    
+    .light-point {
+      position: absolute;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      transition: all 0.5s ease;
+    }
+    
+    .hotspots-container {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+    
+    .hotspot {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      background: rgba(0,0,0,0.5);
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      z-index: 10;
+      pointer-events: auto;
+    }
+    .hotspot:hover {
+      background: rgba(25,35,55,0.95);
+      border-color: var(--wind-teal);
+      border-radius: var(--radius-md);
+      width: auto;
+      height: auto;
+      padding: 6px 10px;
+      transform: translate(-50%, -50%) scale(1.05);
+      z-index: 20;
+    }
+    .hotspot .icon { font-size: 18px; }
+    .hotspot .name { 
+      display: none;
+      font-size: 0.6rem; 
+      color: var(--text-secondary);
+      margin-left: 6px;
+      white-space: nowrap;
+    }
+    .hotspot:hover .name { display: block; }
+    .hotspot .status { 
+      display: none;
+      font-size: 0.55rem; 
+      margin-left: 6px;
+      padding: 2px 4px; 
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+    .hotspot:hover .status { display: block; }
+    .hotspot .status.normal { background: rgba(0,210,106,0.2); color: var(--positive); }
+    .hotspot .status.reduziert { background: rgba(255,184,0,0.2); color: var(--warning); }
+    .hotspot .status.kritisch { background: rgba(255,71,87,0.2); color: var(--negative); }
+    
+    .hotspot.production {
+      border-color: rgba(0,170,255,0.5);
+    }
+    .hotspot.production:hover {
+      border-color: var(--water-blue);
+    }
+    
+    .hotspot.buildslot {
+      border-style: dashed;
+      border-color: rgba(255,136,0,0.4);
+      opacity: 0.6;
+    }
+    .hotspot.buildslot:hover {
+      border-color: var(--solar-gold);
+      opacity: 1;
+    }
+    .hotspot.buildslot.built {
+      border-style: solid;
+      border-color: var(--solar-gold);
+      opacity: 1;
+    }
+    
+    .time-slider-container {
+      position: absolute;
+      bottom: 70px;
+      right: 16px;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(8px);
+      border-radius: 12px;
+      padding: 8px 12px;
+      z-index: 25;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .time-slider-container .time-icon { font-size: 16px; }
+    .time-slider-container input[type="range"] {
+      width: 80px;
+      height: 4px;
+      -webkit-appearance: none;
+      background: linear-gradient(to right, #1a2a4a, #FFB800, #1a2a4a);
+      border-radius: 2px;
+      outline: none;
+    }
+    .time-slider-container input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      background: white;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+    .time-slider-container .time-label {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      min-width: 36px;
+    }
+    
+    .lighting-button {
+      position: absolute;
+      bottom: 115px;
+      right: 16px;
+      z-index: 25;
+    }
+    
+    .lighting-btn {
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(8px);
+      border: 2px solid rgba(255,200,50,0.5);
+      border-radius: 20px;
+      padding: 6px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .lighting-btn:hover {
+      background: rgba(25,35,55,0.95);
+      border-color: var(--solar-gold);
+      padding: 8px 12px;
+    }
+    
+    .lighting-btn .icon { font-size: 16px; }
+    .lighting-btn .percent {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: white;
+    }
+    .lighting-btn .details {
+      display: none;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .lighting-btn:hover .percent { display: none; }
+    .lighting-btn:hover .details { display: flex; }
+    .lighting-btn .name {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+    .lighting-btn .status {
+      font-size: 0.65rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+    .lighting-btn .status.normal { background: rgba(0,210,106,0.2); color: var(--positive); }
+    .lighting-btn .status.reduziert { background: rgba(255,184,0,0.2); color: var(--warning); }
+    .lighting-btn .status.kritisch { background: rgba(255,71,87,0.2); color: var(--negative); }
+
+    .city-header {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      padding: 14px 20px;
+      background: linear-gradient(180deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 60%, transparent 100%);
+      z-index: 15;
+      display: flex; justify-content: space-between; align-items: center;
+      pointer-events: none;
+    }
+    .city-header > * { pointer-events: auto; }
+    .city-title { 
+      font-size: 1.1rem; 
+      font-weight: 600; 
+      text-shadow: 0 1px 3px rgba(0,0,0,0.8), 0 0 10px rgba(0,0,0,0.5);
+    }
+    .city-date { 
+      font-size: 0.85rem; 
+      color: rgba(255,255,255,0.85); 
+      margin-top: 2px;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+    }
+    .city-weather { font-size: 2rem; }
+    
+    /* Atmosphere layer - fixed on screen (clouds, rain, fog) */
+    .weather-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 65px;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 10; /* Above image for clouds/rain */
+    }
+    
+    /* Sky layer - scrolls with image (sun, moon, stars, gradient) */
+    .sky-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 0; /* Behind village PNG */
+    }
+    
+    .sky-gradient {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 100%;
+      transition: background 1s ease;
+    }
+    
+    .sun {
+      position: absolute;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #fff9c4 0%, #ffeb3b 40%, #ff9800 100%);
+      box-shadow: 0 0 50px 15px rgba(255,235,59,0.5), 0 0 80px 30px rgba(255,152,0,0.25);
+      transition: all 0.3s ease;
+    }
+    
+    .moon {
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #fffde8 0%, #f5f0c4 50%, #e8e0a0 100%);
+      box-shadow: 0 0 25px 8px rgba(255, 253, 232, 0.4);
+      transition: all 0.3s ease;
+    }
+    
+    .stars-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 60%;
+    }
+    
+    .star {
+      position: absolute;
+      width: 2px;
+      height: 2px;
+      background: white;
+      border-radius: 50%;
+      animation: twinkle 2s ease-in-out infinite;
+    }
+    
+    @keyframes twinkle {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 1; }
+    }
+    
+    .cloud {
+      position: absolute;
+      font-size: 45px;
+      opacity: 0.9;
+      filter: drop-shadow(2px 2px 3px rgba(0,0,0,0.1));
+      transition: filter 0.5s;
+      left: 0;
+    }
+    .cloud.gray {
+      filter: brightness(0.6) drop-shadow(2px 2px 3px rgba(0,0,0,0.3));
+    }
+    
+    @keyframes cloud-drift {
+      0% { transform: translateX(-150px); }
+      100% { transform: translateX(calc(100vw + 150px)); }
+    }
+    
+    @keyframes cloud-drift-fast {
+      0% { transform: translateX(-150px); }
+      100% { transform: translateX(calc(100vw + 150px)); }
+    }
+    
+    .rain-container, .snow-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      overflow: hidden;
+    }
+    
+    .raindrop {
+      position: absolute;
+      width: 2px;
+      height: 15px;
+      background: linear-gradient(transparent, rgba(174,194,224,0.6));
+      animation: rain-fall 0.7s linear infinite;
+    }
+    
+    @keyframes rain-fall {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(100vh); }
+    }
+    
+    .snowflake {
+      position: absolute;
+      color: white;
+      opacity: 0.85;
+      text-shadow: 0 0 3px rgba(255,255,255,0.5);
+      animation: snow-fall 4s linear infinite;
+    }
+    
+    @keyframes snow-fall {
+      0% { transform: translateY(0) rotate(0deg); }
+      100% { transform: translateY(100vh) rotate(360deg); }
+    }
+
+    .efficiency-badges {
+      position: absolute;
+      top: 70px;
+      right: 16px;
+      display: flex;
+      gap: 6px;
+      z-index: 15;
+    }
+    .eff-badge {
+      background: rgba(0,180,166,0.3);
+      border: 1px solid var(--wind-teal);
+      border-radius: 50%;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .eff-badge:hover { background: rgba(0,180,166,0.5); }
+
+    .bilanz-bar {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      padding: 10px 20px;
+      background: rgba(0,0,0,0.9);
+      border-top: 1px solid rgba(255,255,255,0.1);
+      z-index: 25;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .bilanz-formula {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.95rem;
+    }
+    .bilanz-formula .item { text-align: center; }
+    .bilanz-formula .prod { color: var(--positive); font-weight: 600; }
+    .bilanz-formula .verb { color: var(--negative); font-weight: 600; }
+    .bilanz-formula .result { padding: 4px 10px; border-radius: 6px; font-weight: 700; }
+    .bilanz-formula .result.positive { background: rgba(0,210,106,0.2); color: var(--positive); }
+    .bilanz-formula .result.negative { background: rgba(255,71,87,0.2); color: var(--negative); }
+    .bilanz-formula .operator { color: var(--text-muted); }
+    .bilanz-formula .label { font-size: 0.55rem; color: var(--text-muted); font-family: 'DM Sans', sans-serif; }
+    
+    .bilanz-hint { font-size: 0.75rem; color: var(--text-muted); }
+    .next-month-btn {
+      background: linear-gradient(135deg, var(--wind-teal), var(--water-blue));
+      border: none;
+      border-radius: var(--radius-md);
+      padding: 10px 16px;
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .next-month-btn:hover { transform: scale(1.03); }
+
+    .smartphone-container {
+      width: 350px; min-width: 350px;
+      padding: 12px;
+      background: linear-gradient(180deg, #1a1a2e 0%, #0f0f1a 100%);
+      display: flex; 
+      flex-direction: column; 
+      align-items: center; 
+      height: 100%;
+      box-sizing: border-box;
+    }
+    
+    .smartphone-area {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+    }
+    
+    .monat-beenden-btn {
+      width: 300px;
+      padding: 16px 20px;
+      background: linear-gradient(135deg, #ff8c00, #ff6b00);
+      border: none;
+      border-radius: 14px;
+      color: white;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 4px 15px rgba(255,140,0,0.4);
+      flex-shrink: 0;
+      margin-top: 12px;
+    }
+    .monat-beenden-btn:hover {
+      transform: scale(1.02);
+      box-shadow: 0 6px 20px rgba(255,140,0,0.5);
+    }
+    
+    .smartphone-device {
+      width: 300px;
+      height: 650px;
+      flex-shrink: 0;
+      background: linear-gradient(145deg, #2d2d44, #1a1a2e);
+      border-radius: 32px;
+      padding: 6px;
+      box-shadow: inset 0 1px 1px rgba(255,255,255,0.1);
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .smartphone-screen {
+      background: var(--phone-bg);
+      border-radius: 28px;
+      flex: 1;
+      min-height: 0;
+      display: flex; flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+    
+    .smartphone-notch {
+      position: absolute; top: 5px; left: 50%;
+      transform: translateX(-50%);
+      width: 70px; height: 20px;
+      background: #1a1a2e;
+      border-radius: 10px;
+      z-index: 10;
+    }
+    
+    .smartphone-header {
+      padding: 8px 12px 4px;
+      display: flex; justify-content: space-between;
+      font-size: 0.7rem;
+      color: rgba(255,255,255,0.7);
+    }
+
+    .app-nav {
+      display: flex;
+      background: rgba(0,0,0,0.4);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .app-tab {
+      flex: 1;
+      padding: 6px 2px;
+      text-align: center;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      position: relative;
+    }
+    .app-tab:hover { background: rgba(255,255,255,0.03); }
+    .app-tab.active { border-bottom-color: var(--wind-teal); background: rgba(0,180,166,0.08); }
+    .app-tab .tab-icon { font-size: 14px; display: block; }
+    .app-tab .tab-name { font-size: 0.5rem; color: var(--text-secondary); margin-top: 1px; }
+    .app-tab .badge {
+      position: absolute; top: 4px; right: 50%;
+      transform: translateX(12px);
+      width: 6px; height: 6px;
+      background: var(--negative);
+      border-radius: 50%;
+    }
+
+    .app-content { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 10px; }
+    .app-title { font-size: 0.9rem; font-weight: 600; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+
+    .info-btn {
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: var(--bg-card-hover);
+      border: none;
+      color: var(--text-secondary);
+      font-size: 0.7rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center;
+      margin-left: 4px;
+    }
+    .info-btn:hover { background: var(--wind-teal); color: white; }
+
+    .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .dash-card {
+      background: var(--phone-card);
+      border-radius: var(--radius-md);
+      padding: 10px;
+      cursor: pointer;
+    }
+    .dash-card:hover { background: #252542; }
+    .dash-card.full { grid-column: span 2; }
+    .dash-card .label { font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 2px; display: flex; align-items: center; }
+    .dash-card .value { font-size: 1.15rem; font-weight: 700; font-family: 'Space Mono', monospace; }
+    .dash-card .icon-value { display: flex; align-items: center; gap: 6px; }
+    .dash-card .icon-value .icon { font-size: 18px; }
+
+    .speicher-bar { height: 14px; background: rgba(0,0,0,0.3); border-radius: 7px; overflow: hidden; margin-top: 6px; }
+    .speicher-fill { height: 100%; background: linear-gradient(90deg, var(--wind-teal), var(--water-blue)); border-radius: 7px; transition: width 0.4s ease; }
+
+    .building-list { display: flex; flex-direction: column; gap: 8px; }
+    .building-card {
+      background: var(--phone-card);
+      border-radius: var(--radius-md);
+      padding: 10px;
+      cursor: pointer;
+      border: 2px solid transparent;
+    }
+    .building-card:hover { border-color: var(--wind-teal); }
+    .building-card.locked { opacity: 0.4; cursor: not-allowed; }
+    .building-card .header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .building-card .b-icon { font-size: 22px; }
+    .building-card .b-info { flex: 1; }
+    .building-card .b-name { font-weight: 600; font-size: 0.85rem; }
+    .building-card .b-desc { font-size: 0.65rem; color: var(--text-secondary); }
+    .building-card .b-status { font-size: 0.6rem; padding: 3px 6px; border-radius: 4px; }
+    .building-card .b-status.normal { background: rgba(0,210,106,0.12); color: var(--positive); }
+    .building-card .b-status.reduziert { background: rgba(255,184,0,0.12); color: var(--warning); }
+    .building-card .b-status.kritisch { background: rgba(255,71,87,0.12); color: var(--negative); }
+    .building-card .stats { display: flex; gap: 12px; font-size: 0.7rem; }
+    .building-card .stat { display: flex; align-items: center; gap: 3px; }
+    .building-card .stat .val { font-family: 'Space Mono', monospace; }
+
+    .plant-card { background: var(--phone-card); border-radius: var(--radius-md); padding: 10px; margin-bottom: 8px; cursor: pointer; }
+    .plant-card:hover { background: #252542; }
+    .plant-card .header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .plant-card .p-icon { font-size: 26px; }
+    .plant-card .p-name { font-weight: 600; font-size: 0.9rem; }
+    .plant-card .p-desc { font-size: 0.7rem; color: var(--text-secondary); }
+    .plant-card .output-bar { height: 6px; background: rgba(0,0,0,0.3); border-radius: 3px; overflow: hidden; }
+    .plant-card .output-fill { height: 100%; background: var(--positive); transition: width 0.4s; }
+    .plant-card .output-text { display: flex; justify-content: space-between; margin-top: 4px; font-size: 0.7rem; }
+    .plant-card .output-text .current { color: var(--positive); font-family: 'Space Mono', monospace; }
+    .plant-card .output-text .max { color: var(--text-muted); }
+
+    .weather-current { background: var(--phone-card); border-radius: var(--radius-lg); padding: 16px; text-align: center; margin-bottom: 12px; }
+    .weather-current .temp-icon { font-size: 42px; }
+    .weather-current .temp-name { font-size: 1.1rem; font-weight: 600; margin-top: 6px; }
+    .weather-current .temp-desc { font-size: 0.8rem; color: var(--text-secondary); }
+
+    .weather-forecast { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+    .forecast-day { background: var(--phone-card); border-radius: var(--radius-sm); padding: 8px 4px; text-align: center; }
+    .forecast-day .day { font-size: 0.55rem; color: var(--text-muted); margin-bottom: 3px; }
+    .forecast-day .icon { font-size: 20px; }
+    .forecast-day .effect { font-size: 0.55rem; color: var(--text-secondary); margin-top: 2px; }
+
+    .chat-container { display: flex; flex-direction: column; height: calc(100% + 24px); margin: -12px; overflow-x: hidden; }
+    .chat-header { padding: 10px 12px; background: var(--phone-card); border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .chat-header h3 { font-size: 0.9rem; display: flex; align-items: center; gap: 6px; }
+    .chat-header .members { font-size: 0.6rem; color: var(--text-secondary); margin-top: 1px; }
+
+    .chat-messages { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+    .chat-message { max-width: 88%; word-wrap: break-word; overflow-wrap: break-word; }
+    .chat-message.received { align-self: flex-start; }
+    .chat-message.sent { align-self: flex-end; }
+    .chat-message .sender { font-size: 0.6rem; color: var(--text-muted); margin-bottom: 3px; display: flex; align-items: center; gap: 4px; }
+    .chat-message .bubble { padding: 8px 12px; border-radius: 14px; font-size: 0.8rem; line-height: 1.35; word-wrap: break-word; overflow-wrap: break-word; }
+    .chat-message.received .bubble { background: var(--phone-card); border-bottom-left-radius: 4px; }
+    .chat-message.sent .bubble { background: var(--wind-teal); color: white; border-bottom-right-radius: 4px; }
+    .chat-message .time { font-size: 0.5rem; color: var(--text-muted); margin-top: 2px; }
+
+    .chat-input { padding: 10px 12px; background: var(--phone-card); border-top: 1px solid rgba(255,255,255,0.08); display: flex; gap: 8px; }
+    .chat-input input { flex: 1; background: rgba(0,0,0,0.3); border: none; border-radius: 18px; padding: 8px 14px; color: white; font-size: 0.8rem; }
+    .chat-input input::placeholder { color: var(--text-muted); }
+    .chat-input button { width: 36px; height: 36px; border-radius: 50%; border: none; background: var(--wind-teal); color: white; font-size: 16px; cursor: pointer; }
+
+    .info-popup-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; }
+    .info-popup {
+      position: fixed;
+      bottom: 50%; left: 50%;
+      transform: translate(-50%, 50%);
+      background: var(--bg-card);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      max-width: 360px;
+      width: 90%;
+      max-height: 60vh;
+      overflow-y: auto;
+      z-index: 1001;
+      animation: pop-in 0.2s ease;
+    }
+    @keyframes pop-in { from { opacity: 0; transform: translate(-50%, 50%) scale(0.95); } to { opacity: 1; transform: translate(-50%, 50%) scale(1); } }
+    .info-popup-header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .info-popup-header span { font-size: 32px; }
+    .info-popup-header h3 { font-size: 1.1rem; }
+    .info-popup-close {
+      position: absolute; top: 12px; right: 12px;
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: var(--bg-card-hover);
+      border: none;
+      color: var(--text-secondary);
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .info-popup-content { color: var(--text-secondary); line-height: 1.6; white-space: pre-line; font-size: 0.85rem; }
+
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.85);
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px;
+      z-index: 1000;
+    }
+    .modal {
+      background: var(--bg-card);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      max-width: 420px;
+      width: 100%;
+      max-height: 85vh;
+      overflow-y: auto;
+      animation: modal-in 0.25s ease;
+    }
+    @keyframes modal-in { from { opacity: 0; transform: scale(0.95) translateY(-10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+    .modal-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--bg-card-hover); }
+    .modal-header .m-icon { font-size: 32px; }
+    .modal-header .m-title h2 { font-size: 1.1rem; margin-bottom: 2px; }
+    .modal-header .m-title p { font-size: 0.8rem; color: var(--text-secondary); }
+
+    .massnahme-list { display: flex; flex-direction: column; gap: 6px; }
+    .massnahme-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px;
+      background: var(--bg-dark);
+      border: 2px solid var(--bg-card-hover);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+    }
+    .massnahme-item:hover { border-color: var(--wind-teal); background: var(--bg-card-hover); }
+    .massnahme-item.selected { border-color: var(--wind-teal); background: rgba(0,180,166,0.12); }
+    .massnahme-item .indicator { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .massnahme-item .indicator.green { background: var(--positive); }
+    .massnahme-item .indicator.yellow-green { background: #7ED957; }
+    .massnahme-item .indicator.yellow { background: var(--warning); }
+    .massnahme-item .indicator.orange { background: var(--fire-orange); }
+    .massnahme-item .indicator.red { background: var(--negative); }
+    .massnahme-item .m-content { flex: 1; }
+    .massnahme-item .m-name { font-weight: 500; font-size: 0.85rem; }
+    .massnahme-item .m-desc { font-size: 0.7rem; color: var(--text-secondary); }
+    .massnahme-item .m-effect { text-align: right; }
+    .massnahme-item .m-saving { font-family: 'Space Mono', monospace; font-size: 0.8rem; color: var(--positive); }
+    .massnahme-item .m-penalty { font-size: 0.65rem; color: var(--warning); }
+
+    .modal-close {
+      width: 100%;
+      padding: 10px;
+      margin-top: 12px;
+      background: var(--bg-card-hover);
+      border: none;
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .defizit-options { display: flex; gap: 8px; margin: 16px 0; }
+    .defizit-option {
+      flex: 1;
+      padding: 12px;
+      background: var(--bg-dark);
+      border: 2px solid var(--bg-card-hover);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      text-align: center;
+    }
+    .defizit-option:hover { border-color: var(--wind-teal); }
+    .defizit-option.selected { border-color: var(--wind-teal); background: rgba(0,180,166,0.1); }
+    .defizit-option .d-icon { font-size: 24px; margin-bottom: 6px; }
+    .defizit-option .d-name { font-weight: 600; font-size: 0.85rem; }
+    .defizit-option .d-cost { font-size: 0.7rem; color: var(--warning); margin-top: 4px; }
+    .defizit-option.disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .confirm-actions { display: flex; gap: 10px; margin-top: 16px; }
+    .confirm-btn {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: var(--radius-md);
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .confirm-btn.primary { background: linear-gradient(135deg, var(--wind-teal), var(--water-blue)); color: white; }
+    .confirm-btn.secondary { background: var(--bg-card-hover); color: var(--text-primary); }
+
+    .summary-modal .summary-header { text-align: center; margin-bottom: 16px; }
+    .summary-modal .summary-month { font-size: 1.3rem; font-weight: 600; }
+    .summary-modal .summary-subtitle { color: var(--text-secondary); font-size: 0.85rem; }
+    .summary-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 12px; }
+    .summary-stat { background: var(--bg-dark); border-radius: var(--radius-md); padding: 10px; text-align: center; }
+    .summary-stat .s-icon { font-size: 16px; }
+    .summary-stat .s-value { font-size: 1rem; font-weight: 600; font-family: 'Space Mono', monospace; }
+    .summary-stat .s-label { font-size: 0.6rem; color: var(--text-muted); }
+    .summary-message { background: var(--bg-dark); border-radius: var(--radius-md); padding: 12px; margin-bottom: 12px; }
+    .summary-message .sm-header { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+    .summary-message .sm-avatar { font-size: 16px; }
+    .summary-message .sm-name { font-weight: 500; font-size: 0.8rem; }
+    .summary-message .sm-text { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.4; }
+    .continue-btn {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, var(--wind-teal), var(--water-blue));
+      border: none;
+      border-radius: var(--radius-md);
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .end-screen {
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px;
+      background: radial-gradient(ellipse at top, rgba(255,184,0,0.12) 0%, transparent 50%), var(--bg-dark);
+    }
+    .end-content { max-width: 480px; width: 100%; text-align: center; }
+    .end-content h1 { font-size: 1.8rem; margin-bottom: 6px; }
+    .end-content .subtitle { color: var(--text-secondary); margin-bottom: 20px; }
+    .rating { font-size: 1.2rem; font-weight: 700; padding: 10px 20px; border-radius: 16px; display: inline-block; margin-bottom: 20px; }
+    .rating.gold { background: rgba(255,184,0,0.2); color: var(--solar-gold); border: 2px solid var(--solar-gold); }
+    .rating.silver { background: rgba(192,192,192,0.2); color: #C0C0C0; border: 2px solid #C0C0C0; }
+    .rating.bronze { background: rgba(205,127,50,0.2); color: #CD7F32; border: 2px solid #CD7F32; }
+    .end-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px; }
+    .end-stat { background: var(--bg-card); border-radius: var(--radius-md); padding: 14px; }
+    .end-stat .icon { font-size: 22px; }
+    .end-stat .value { font-size: 1.2rem; font-weight: 700; font-family: 'Space Mono', monospace; margin: 3px 0; }
+    .end-stat .label { font-size: 0.7rem; color: var(--text-secondary); }
+    .restart-btn {
+      background: linear-gradient(135deg, var(--wind-teal), var(--water-blue));
+      border: none;
+      border-radius: 20px;
+      padding: 12px 32px;
+      font-size: 1rem;
+      font-weight: 600;
+      color: white;
+      cursor: pointer;
+    }
+
+    .unlock-banner {
+      position: fixed; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      background: linear-gradient(135deg, var(--wind-teal), var(--water-blue));
+      padding: 20px 40px;
+      border-radius: var(--radius-lg);
+      text-align: center;
+      z-index: 2000;
+      animation: unlock-pop 0.4s ease;
+    }
+    @keyframes unlock-pop {
+      0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+      70% { transform: translate(-50%, -50%) scale(1.05); }
+      100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    }
+    .unlock-banner h2 { font-size: 1.2rem; margin-bottom: 6px; }
+    .unlock-banner p { opacity: 0.9; font-size: 0.9rem; }
+
+    .action-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+    .action-card {
+      background: var(--phone-card);
+      border: 2px solid var(--bg-card-hover);
+      border-radius: var(--radius-md);
+      padding: 10px;
+      cursor: pointer;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+    .action-card:hover { border-color: var(--wind-teal); }
+    .action-card.used { opacity: 0.4; cursor: not-allowed; border-color: transparent; }
+    .action-card.invest { border-color: var(--fire-orange); background: rgba(255,140,0,0.15); }
+    .action-card.invest:hover { border-color: var(--solar-gold); background: rgba(255,140,0,0.25); }
+    .action-card.sell { border-color: var(--positive); background: rgba(0,210,106,0.15); }
+    .action-card.sell:hover { border-color: var(--positive); background: rgba(0,210,106,0.25); }
+    .action-card .ac-icon { font-size: 20px; }
+    .action-card .ac-name { font-size: 0.7rem; font-weight: 500; }
+    .ausbau-btn {
+      width: 100%;
+      padding: 10px;
+      background: linear-gradient(135deg, var(--fire-orange), var(--solar-gold));
+      border: none;
+      border-radius: var(--radius-md);
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    .ausbau-btn:hover { transform: scale(1.02); }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <div class="rotate-hint">
+    <div class="icon">📱</div>
+    <h2>Bitte drehe dein Gerät</h2>
+    <p>Das Spiel funktioniert am besten im Querformat.</p>
+  </div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useMemo } = React;
+
+    const MONATE = ["März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember", "Januar", "Februar"];
+    const SAISONS = ["Frühling", "Sommer", "Herbst", "Winter"];
+    const EE_TO_KWH = 1000;
+    
+    const WETTER = [
+      { id: "sonnig", name: "Sonnig", icon: "☀️", prod: 1.2, verb: 0.95, desc: "Perfekt für Solar" },
+      { id: "bewoelkt", name: "Bewölkt", icon: "⛅", prod: 0.7, verb: 1.0, desc: "Durchschnittlich" },
+      { id: "regen", name: "Regen", icon: "🌧️", prod: 0.35, verb: 1.05, desc: "Wenig Sonne" },
+      { id: "sturm", name: "Sturm", icon: "💨", prod: 0.5, verb: 1.05, desc: "Gut für Wind" },
+      { id: "nebel", name: "Nebel", icon: "🌫️", prod: 0.15, verb: 1.0, desc: "Dichter Bodennebel" },
+      { id: "hochnebel", name: "Hochnebel", icon: "☁️", prod: 0.35, verb: 1.0, desc: "Grau, aber trocken" },
+      { id: "kaelte", name: "Kältewelle", icon: "🥶", prod: 0.6, verb: 1.45, desc: "Viel Heizung" },
+      { id: "hitze", name: "Hitzewelle", icon: "🌡️", prod: 1.1, verb: 1.3, desc: "Viel Kühlung" }
+    ];
+
+    const GEBAEUDE = {
+      spital: { name: "Spital", icon: "🏥", verbrauch: 45, beschreibung: "Kantonsspital", info: "Das Spital braucht konstant viel Strom für lebensrettende Geräte. Der Verbrauch ist das ganze Jahr gleich.", saison: [1.0, 1.0, 1.0, 1.0] },
+      wasserwerk: { name: "Wasserwerk", icon: "🚰", verbrauch: 20, beschreibung: "Trinkwasser", info: "Pumpt Trinkwasser in die Stadt. Im Sommer mehr Verbrauch (Bewässerung, Pools).", saison: [1.0, 1.2, 1.0, 0.9] },
+      wohnquartier: { name: "Wohnquartier", icon: "🏘️", verbrauch: 35, beschreibung: "500 Haushalte", info: "Hier wohnen die Leute. Im Winter viel mehr Verbrauch wegen Heizung.", saison: [1.0, 0.9, 1.0, 1.3] },
+      strassenbeleuchtung: { name: "Beleuchtung", icon: "💡", verbrauch: 15, beschreibung: "Strassenlaternen", info: "Im Winter brennen die Lampen viel länger wegen kurzer Tage. Im Sommer kaum Verbrauch.", saison: [0.8, 0.6, 1.0, 1.4] },
+      schule: { name: "Schulhaus", icon: "🏫", verbrauch: 25, beschreibung: "Primarschule", info: "Heizung und Turnhalle brauchen viel. Im Sommer fast nichts wegen Ferien!", saison: [1.0, 0.3, 1.0, 1.2] },
+      hallenbad: { name: "Hallenbad", icon: "🏊", verbrauch: 30, beschreibung: "Schwimmbad", info: "Wasserheizung braucht extrem viel. Im Sommer gehen alle ins Freibad, im Winter ist das Hallenbad voll.", saison: [1.0, 0.7, 1.0, 1.3] },
+      einkaufszentrum: { name: "Einkaufszentrum", icon: "🛒", verbrauch: 35, beschreibung: "Shopping", info: "Klimaanlage und Beleuchtung. Im Winter mehr wegen Weihnachts-Shopping und Heizung.", saison: [1.0, 1.0, 1.0, 1.3] },
+      rathaus: { name: "Rathaus", icon: "🏛️", verbrauch: 15, beschreibung: "Verwaltung", info: "Im Sommer weniger Betrieb (Ferienzeit), im Winter Heizung.", saison: [1.0, 0.8, 1.0, 1.1] }
+    };
+
+    // Positionen werden aus der geladenen Konfiguration (gameConfig) verwendet
+
+    const MASSNAHMEN = {
+      spital: [
+        { stufe: 1, name: "Normal", desc: "Volle Versorgung", faktor: 1.0, zufriedenheit: 0, color: "green" },
+        { stufe: 2, name: "Sparmodus", desc: "Nicht-kritische Bereiche gedimmt", faktor: 0.90, zufriedenheit: -2, color: "yellow-green" }
+      ],
+      wasserwerk: [
+        { stufe: 1, name: "Normal", desc: "Voller Druck", faktor: 1.0, zufriedenheit: 0, color: "green" },
+        { stufe: 2, name: "Reduziert", desc: "Nachts weniger Druck", faktor: 0.85, zufriedenheit: -3, color: "yellow-green" }
+      ],
+      wohnquartier: [
+        { stufe: 1, name: "Normal", desc: "Voller Komfort", faktor: 1.0, zufriedenheit: 0, color: "green" },
+        { stufe: 2, name: "Sparappell", desc: "Alle zum Sparen aufgerufen", faktor: 0.85, zufriedenheit: -2, color: "yellow-green" },
+        { stufe: 3, name: "Heizung 19°C", desc: "Temperatur begrenzt", faktor: 0.65, zufriedenheit: -8, color: "yellow" }
+      ],
+      strassenbeleuchtung: [
+        { stufe: 1, name: "100%", desc: "Volle Helligkeit", faktor: 1.0, zufriedenheit: 0, color: "green" },
+        { stufe: 2, name: "70%", desc: "Gedimmt", faktor: 0.70, zufriedenheit: -1, color: "yellow-green" },
+        { stufe: 3, name: "50%", desc: "Erst ab 21 Uhr", faktor: 0.50, zufriedenheit: -3, color: "yellow" },
+        { stufe: 4, name: "30%", desc: "Nur Hauptstrassen", faktor: 0.30, zufriedenheit: -8, color: "orange" }
+      ],
+      schule: [
+        { stufe: 1, name: "Normal", desc: "Voller Betrieb", faktor: 1.0, zufriedenheit: 0, color: "green" },
+        { stufe: 2, name: "Kühler", desc: "Heizung 2°C runter", faktor: 0.80, zufriedenheit: -2, color: "yellow-green" },
+        { stufe: 3, name: "Kein Sport", desc: "Turnhalle zu", faktor: 0.60, zufriedenheit: -5, color: "yellow" },
+        { stufe: 4, name: "Halbtags", desc: "Nur Vormittag", faktor: 0.40, zufriedenheit: -12, color: "orange" }
+      ],
+      hallenbad: [
+        { stufe: 1, name: "28°C", desc: "Normalbetrieb", faktor: 1.0, zufriedenheit: 0, color: "green" },
+        { stufe: 2, name: "26°C", desc: "Wasser kühler", faktor: 0.80, zufriedenheit: -3, color: "yellow-green" },
+        { stufe: 3, name: "Kürzer", desc: "10-18 Uhr", faktor: 0.55, zufriedenheit: -6, color: "yellow" },
+        { stufe: 4, name: "Nur Schule", desc: "Öffentlich zu", faktor: 0.30, zufriedenheit: -12, color: "orange" },
+        { stufe: 5, name: "Geschlossen", desc: "Komplett zu", faktor: 0.0, zufriedenheit: -20, color: "red" }
+      ],
+      einkaufszentrum: [
+        { stufe: 1, name: "Normal", desc: "Volle Klimatisierung", faktor: 1.0, zufriedenheit: 0, color: "green" },
+        { stufe: 2, name: "Klima -", desc: "Temperatur angepasst", faktor: 0.85, zufriedenheit: -2, color: "yellow-green" },
+        { stufe: 3, name: "Gedimmt", desc: "Licht runter", faktor: 0.65, zufriedenheit: -5, color: "yellow" },
+        { stufe: 4, name: "Kürzer", desc: "10-18 Uhr", faktor: 0.45, zufriedenheit: -10, color: "orange" }
+      ],
+      rathaus: [
+        { stufe: 1, name: "Normal", desc: "Voller Betrieb", faktor: 1.0, zufriedenheit: 0, color: "green" },
+        { stufe: 2, name: "Sparmodus", desc: "Licht aus bei Tag", faktor: 0.75, zufriedenheit: -1, color: "yellow-green" },
+        { stufe: 3, name: "Homeoffice", desc: "Teil zuhause", faktor: 0.50, zufriedenheit: -4, color: "yellow" }
+      ]
+    };
+
+    const PRODUKTION = {
+      wasserkraft: { name: "Wasserkraft", icon: "💧", basis: 120, desc: "Flusskraftwerk", info: "Flüsse: ❄️ Winter weniger, ☀️ Sommer mehr Schmelzwasser" },
+      pv_dach: { name: "Solar", icon: "☀️", basis: 25, desc: "PV-Anlage", wetterAbhaengig: true, info: "Wetterabhängig: ☀️ 120%, 🌫️ nur 20%" },
+      kva: { 
+        name: "KVA", icon: "🔥", basis: 55, desc: "Kehrichtverbrennung", co2: 2, 
+        fernwaerme: { gebaeude: ['wohnquartier', 'schule', 'hallenbad'], winterBonus: 0.15 },
+        info: "Kehrichtverbrennungsanlage produziert Strom UND Fernwärme.\n\n🏠 Angeschlossene Gebäude:\n• Wohnquartier\n• Schulhaus\n• Hallenbad\n\n❄️ Im Winter: -15% Heizenergie für diese Gebäude!\n\n⚠️ Erzeugt CO₂ (Plastikverbrennung)" 
+      }
+    };
+
+    const UPGRADES = {
+      pv_gross: { name: "Grosse PV-Anlage", icon: "☀️", kosten: 30000, produktion: 45, desc: "+45'000 kWh Solar", wetterAbhaengig: true, info: "Grosse Solaranlage auf Industriedach. Wetterabhängig wie die kleine Anlage." },
+      windrad: { name: "Windrad", icon: "💨", kosten: 28000, produktion: 30, desc: "+30'000 kWh Wind", info: "Windrad am Stadtrand. Produziert konstant Strom. Bei Sturm sogar 2.5x so viel!" },
+      batterie: { name: "Batteriespeicher", icon: "🔋", kosten: 22000, speicher: 80, desc: "+80'000 kWh Speicher", info: "Grosser Batteriespeicher. Speichert Überschuss für schlechte Zeiten." },
+      smart_grid: { name: "Smart Grid", icon: "📡", kosten: 18000, effizienz: 0.08, desc: "-8% Verbrauch", info: "Intelligentes Stromnetz mit Sensoren. Schaltet Geräte automatisch aus wenn nicht gebraucht." },
+      waermepumpe: { name: "Wärmepumpen", icon: "♨️", kosten: 25000, winter: 0.12, desc: "-12% Heizung im Winter", info: "Förderprogramm für Wärmepumpen. Brauchen nur 1/3 so viel Strom wie normale Heizungen." },
+      buergerservice: { name: "Bürgerservice", icon: "🏛️", kosten: 15000, zufriedenheitSchutz: 0.5, desc: "50% weniger Unmut", info: "Professionelle Kommunikationsabteilung. Die negativen Auswirkungen von Sparmassnahmen auf die Zufriedenheit werden halbiert!" }
+    };
+
+    const AKTIONSKARTEN = [
+      { id: "notreserve", name: "Strom leihen", icon: "🤝", desc: "+25'000 kWh Speicher", effect: { addSpeicher: 25 }, info: "Leih dir Strom vom Nachbarkanton. Sofort 25'000 kWh in deinen Speicher." },
+      { id: "effizienz", name: "Effizienz-Boost", icon: "💚", desc: "-20% Verbrauch", effect: { verbrauchMod: 0.8 }, info: "Alle Sparmassnahmen gleichzeitig aktivieren. -20% Verbrauch diesen Monat." },
+      { id: "turbo", name: "Turbo-Produktion", icon: "⚡", desc: "+25% Produktion", effect: { prodMod: 1.25 }, info: "Alle Anlagen auf Hochleistung fahren. +25% Produktion diesen Monat." },
+      { id: "wartung", name: "Express-Wartung", icon: "🔧", desc: "Repariert Anlagen", effect: { repairAll: true }, info: "Notfall-Team repariert sofort alle defekten Anlagen." },
+      { id: "deal", name: "Energie-Deal", icon: "🤝", desc: "1x gratis Import", effect: { freeImport: true }, info: "Gute Kontakte zum Stromnetz: Einmal kostenlos importieren." },
+      { id: "kampagne", name: "Spar-Kampagne", icon: "📢", desc: "-15% freiwillig", effect: { buergerSparen: 0.15 }, info: "Medienkampagne motiviert alle zum Sparen. -15% ohne Zufriedenheitsverlust." },
+      { id: "fest", name: "Bürgerfest", icon: "🎉", desc: "+15% Zufriedenheit", effect: { zufriedenheitBonus: 15 }, info: "Organisiere ein Stadtfest! Die Bevölkerung ist begeistert und die Zufriedenheit steigt um 15%." }
+    ];
+
+    const SAISON_WASSERKRAFT = { 0: 0.9, 1: 1.15, 2: 1.0, 3: 0.8 };
+
+    const EVENTS = [
+      { id: "stromkrise", name: "EU-Stromkrise", icon: "🇪🇺", desc: "Importpreise verdreifacht!",
+        choices: [
+          { text: "Teuer importieren", icon: "💰", effect: { budgetCost: 12000 }, desc: "-12'000 CHF" },
+          { text: "Sparappell", icon: "📢", effect: { globalSpar: 0.15 }, desc: "-15% Verbrauch" }
+        ]
+      },
+      { id: "foerderung", name: "Förderprogramm", icon: "💰", desc: "Bund unterstützt Gemeinden",
+        choices: [
+          { text: "Geld nehmen", icon: "💵", effect: { budget: 18000 }, desc: "+18'000 CHF" },
+          { text: "Effizienzberatung", icon: "📊", effect: { permEffizienz: 0.05 }, desc: "-5% permanent" }
+        ]
+      },
+      { id: "wartung", name: "KVA-Störung", icon: "🔧", desc: "Technisches Problem",
+        choices: [
+          { text: "Sofort reparieren", icon: "⚡", effect: { budgetCost: 8000 }, desc: "-8'000 CHF" },
+          { text: "Warten", icon: "⏰", effect: { kvaAus: true }, desc: "KVA aus" }
+        ]
+      },
+      { id: "fest", name: "Stadtfest", icon: "🎉", desc: "Traditionelles Fest",
+        choices: [
+          { text: "Grosses Fest", icon: "🎊", effect: { verbrauchMod: 1.35, zufriedenheit: 12 }, desc: "+35% Verbr." },
+          { text: "Kleines Fest", icon: "🎈", effect: { verbrauchMod: 1.1, zufriedenheit: 5 }, desc: "+10% Verbr." },
+          { text: "Absagen", icon: "❌", effect: { zufriedenheit: -15 }, desc: "-15% Zufr." }
+        ]
+      }
+    ];
+
+    const PERSONAS = { james: { name: "James", icon: "👨‍🔧" }, bauer: { name: "Dr. Bauer", icon: "🎓" }, watt: { name: "WATT", icon: "🤖" } };
+
+    const INFO_TEXTS = {
+      budget: { title: "Budget", icon: "💰", content: "Dein Geld in CHF für Notfälle.\n\nWird gebraucht für:\n• Strom importieren\n• Reparaturen\n• Events" },
+      zufriedenheit: { title: "Zufriedenheit", icon: "😊", content: "Wie zufrieden ist die Bevölkerung?\n\n⬇️ Sinkt bei Sparmassnahmen\n⬆️ Steigt bei Speichern (+1% pro 10k, max +3%)\n⬆️ Steigt bei Verkauf (+1% pro 10k, max +5%)\n\n⚠️ Unter 30% = GAME OVER!" },
+      co2: { title: "CO₂-Ausstoss", icon: "🌍", content: "Wie viel CO₂ produziert deine Stadt.\n\nKommt von KVA und Strom-Import.\n\nWeniger ist besser fürs Klima!" },
+      speicher: { title: "Energiespeicher", icon: "🔋", content: "Deine Batterie für schlechte Zeiten.\n\n➕ Füllt sich bei Überschuss\n➖ Wird genutzt bei Defizit\n\nWenn leer, musst du teuer importieren!" },
+      bilanz: { title: "Energie-Bilanz", icon: "📊", content: "Produktion minus Verbrauch.\n\n✅ Positiv = Überschuss → Speicher\n❌ Negativ = Defizit → du entscheidest: Speicher oder Import" },
+      punkte: { title: "Punkte", icon: "⭐", content: "Dein Spielstand.\n\nPunkte bekommst du für:\n• Ausgeglichene Bilanz: +10\n• Hohe Zufriedenheit: +Bonus\n\nAm Ende zählt die Summe!" }
+    };
+
+    const random = arr => arr[Math.floor(Math.random() * arr.length)];
+    const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+    const formatCHF = v => v.toLocaleString('de-CH') + ' CHF';
+    const formatKWh = v => (v * EE_TO_KWH).toLocaleString('de-CH') + ' kWh';
+    const getSeasonalWetter = (q) => {
+      // q: 0=Frühling, 1=Sommer, 2=Herbst, 3=Winter
+      const available = WETTER.filter(w => {
+        if (w.id === 'kaelte' && q < 2) return false;      // Kälte nur Herbst/Winter
+        if (w.id === 'hitze' && q > 1) return false;       // Hitze nur Frühling/Sommer
+        if (w.id === 'hochnebel' && q < 2) return false;   // Hochnebel nur Herbst/Winter
+        return true;
+      });
+      return available[Math.floor(Math.random() * available.length)] || WETTER[0];
+    };
+
+    const Game = () => {
+      const [phase, setPhase] = useState('config');
+      const [difficulty, setDifficulty] = useState('normal');
+      const [stadtName, setStadtName] = useState('');
+      
+      // Configuration from position-helper
+      const [gameConfig, setGameConfig] = useState(null);
+      const configInputRef = useRef(null);
+      
+      const [isRinging, setIsRinging] = useState(true);
+      const [phoneTime, setPhoneTime] = useState({ h: 7, m: 15 });
+      const [missedCalls, setMissedCalls] = useState(0);
+      const [ringCount, setRingCount] = useState(0);
+      
+      const [monat, setMonat] = useState(0);
+      const [budget, setBudget] = useState(50000);
+      const [punkte, setPunkte] = useState(0);
+      const [co2, setCo2] = useState(0);
+      const [zufriedenheit, setZufriedenheit] = useState(70);
+      const [speicher, setSpeicher] = useState(50);
+      
+      const [gebaeudeStates, setGebaeudeStates] = useState({});
+      const [wetter, setWetter] = useState(null);
+      const [wochenWetter, setWochenWetter] = useState([]);
+      
+      const [activeApp, setActiveApp] = useState('dashboard');
+      const [selectedBuilding, setSelectedBuilding] = useState(null);
+      const [showEvent, setShowEvent] = useState(null);
+      const [showSummary, setShowSummary] = useState(false);
+      const [summaryData, setSummaryData] = useState(null);
+      const [infoPopup, setInfoPopup] = useState(null);
+      const [showConfirm, setShowConfirm] = useState(false);
+      const [defizitPlan, setDefizitPlan] = useState('speicher');
+      const [verkaufMenge, setVerkaufMenge] = useState(0);
+      
+      const [chatMessages, setChatMessages] = useState([]);
+      const [chatInput, setChatInput] = useState('');
+      const [hasNewChat, setHasNewChat] = useState(false);
+      
+      const [upgrades, setUpgrades] = useState([]);
+      const [hand, setHand] = useState([]);
+      const [usedCards, setUsedCards] = useState([]);
+      const [showAusbau, setShowAusbau] = useState(false);
+      const [showSpeicherVerkauf, setShowSpeicherVerkauf] = useState(false);
+      const [speicherVerkaufMenge, setSpeicherVerkaufMenge] = useState(0);
+      const [maxSpeicher, setMaxSpeicher] = useState(120);
+      
+      const [eventsEnabled, setEventsEnabled] = useState(false);
+      const [roundMods, setRoundMods] = useState({});
+      const [permBonuses, setPermBonuses] = useState({ effizienz: 0 });
+      const [stats, setStats] = useState({ totalImport: 0, totalAusSpeicher: 0 });
+      
+      // Day/night visualization
+      const [timeOfDay, setTimeOfDay] = useState(0.5); // 0=midnight, 0.5=noon
+      
+      // Image drag state
+      const cityViewRef = useRef(null);
+      const [isDragging, setIsDragging] = useState(false);
+      const dragStartRef = useRef({ x: 0, scrollLeft: 0 });
+
+      const chatEndRef = useRef(null);
+      const audioCtxRef = useRef(null);
+
+      useEffect(() => {
+        if (phase !== 'phone' || !isRinging || missedCalls >= 10) return;
+        const playRingtone = async () => {
+          try {
+            if (!audioCtxRef.current) audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+            const ctx = audioCtxRef.current;
+            if (ctx.state === 'suspended') await ctx.resume();
+            const playTone = (freq, start, dur, vol = 0.2) => {
+              const osc = ctx.createOscillator(); const gain = ctx.createGain();
+              osc.connect(gain); gain.connect(ctx.destination);
+              osc.frequency.value = freq; osc.type = 'square';
+              gain.gain.setValueAtTime(vol, start);
+              gain.gain.exponentialRampToValueAtTime(0.01, start + dur);
+              osc.start(start); osc.stop(start + dur);
+            };
+            const now = ctx.currentTime;
+            playTone(1200, now, 0.08, 0.25); playTone(1500, now + 0.1, 0.08, 0.25);
+            playTone(1200, now + 0.2, 0.08, 0.25); playTone(1500, now + 0.3, 0.08, 0.25);
+            playTone(1800, now + 0.45, 0.15, 0.3);
+          } catch (e) {}
+          setRingCount(c => {
+            if (c >= 5) {
+              setIsRinging(false); setMissedCalls(m => m + 1);
+              setPhoneTime(t => ({ ...t, m: (t.m + 1) % 60 }));
+              setTimeout(() => { setIsRinging(true); setRingCount(0); }, 3000 + Math.random() * 4000);
+              return 0;
+            }
+            return c + 1;
+          });
+        };
+        playRingtone();
+        const id = setInterval(playRingtone, 2500);
+        return () => clearInterval(id);
+      }, [phase, isRinging, missedCalls]);
+
+      useEffect(() => {
+        if (phase !== 'intro') return;
+        const timeout = setTimeout(() => {
+          if ('speechSynthesis' in window) {
+            const text = [
+              missedCalls >= 2 ? "Endlich! Wir versuchen dich seit Minuten zu erreichen! Es ist ein Notfall." : "Guten Morgen, tut mir leid für die frühe Störung.",
+              "Wir haben eine Krise. Die Energiemanagerin hat gestern Abend gekündigt – mitten in der angespanntesten Lage seit Jahren.",
+              "Die Strompreise explodieren, und wir brauchen jetzt jemanden, der das Ruder übernimmt.",
+              "Wir haben gehört, dass du dich mit Energie auskennst. Die Stadt braucht dich. Bist du bereit?"
+            ].join(' ');
+            const utt = new SpeechSynthesisUtterance(text);
+            utt.lang = 'de-DE'; utt.rate = 0.95;
+            const voices = speechSynthesis.getVoices();
+            const deVoice = voices.find(v => v.lang.startsWith('de'));
+            if (deVoice) utt.voice = deVoice;
+            speechSynthesis.speak(utt);
+          }
+        }, 800);
+        return () => clearTimeout(timeout);
+      }, [phase, missedCalls]);
+
+      useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatMessages]);
+
+      const handleStartClick = () => {
+        try { audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)(); audioCtxRef.current.resume(); } catch (e) {}
+        setPhase('phone');
+      };
+
+      const handleDecline = () => {
+        setIsRinging(false); setMissedCalls(m => m + 1);
+        setPhoneTime(t => ({ ...t, m: (t.m + 1) % 60 }));
+        setTimeout(() => { setIsRinging(true); setRingCount(0); }, 3000 + Math.random() * 4000);
+      };
+
+      const handleAnswer = () => { setIsRinging(false); setPhase('intro'); };
+
+      const initGame = () => {
+        const init = {}; Object.keys(GEBAEUDE).forEach(k => { init[k] = 1; });
+        setGebaeudeStates(init);
+        const w = getSeasonalWetter(0);
+        setWetter(w); setWochenWetter([w, getSeasonalWetter(0), getSeasonalWetter(0), getSeasonalWetter(0)]);
+        
+        // Schwierigkeitsgrad-Einstellungen
+        const diffSettings = {
+          easy: { budget: 80000, speicher: 50, karten: 3 },
+          normal: { budget: 60000, speicher: 30, karten: 2 },
+          hard: { budget: 45000, speicher: 10, karten: 1 }
+        };
+        const settings = diffSettings[difficulty] || diffSettings.normal;
+        setBudget(settings.budget);
+        setSpeicher(settings.speicher);
+        
+        // Startkarten (je nach Schwierigkeit)
+        const shuffled = [...AKTIONSKARTEN].sort(() => Math.random() - 0.5);
+        setHand(shuffled.slice(0, settings.karten));
+        
+        const name = stadtName || 'Energiestadt';
+        setTimeout(() => addChatMessage('james', `Willkommen als Energiemanager von ${name}! Ich bin James, der Cheftechniker. Die alte Chefin ist weg, aber ich kenne alle Anlagen. 💪`), 600);
+        setTimeout(() => addChatMessage('james', 'Deine Stadt hat ein strukturelles Defizit – es wird zu wenig produziert! Investiere früh in neue Anlagen.'), 2500);
+      };
+
+      const useCard = (card) => {
+        if (usedCards.includes(card.id)) return;
+        const e = card.effect;
+        if (e.addSpeicher) setSpeicher(s => Math.min(maxSpeicher, s + e.addSpeicher));
+        if (e.verbrauchMod) setRoundMods(m => ({ ...m, verbrauchMod: (m.verbrauchMod || 1) * e.verbrauchMod }));
+        if (e.prodMod) setRoundMods(m => ({ ...m, prodMod: (m.prodMod || 1) * e.prodMod }));
+        if (e.freeImport) setRoundMods(m => ({ ...m, freeImport: true }));
+        if (e.buergerSparen) setRoundMods(m => ({ ...m, buergerSparen: e.buergerSparen }));
+        if (e.repairAll) setRoundMods(m => ({ ...m, kvaAus: false }));
+        if (e.zufriedenheitBonus) setZufriedenheit(z => Math.min(100, z + e.zufriedenheitBonus));
+        setUsedCards([...usedCards, card.id]);
+        setInfoPopup(null);
+      };
+
+      const buyUpgrade = (upId) => {
+        const up = UPGRADES[upId];
+        if (budget < up.kosten || upgrades.includes(upId)) return;
+        setBudget(b => b - up.kosten);
+        setUpgrades([...upgrades, upId]);
+        if (up.speicher) setMaxSpeicher(m => m + up.speicher);
+        setShowAusbau(false);
+        setTimeout(() => addChatMessage('james', `✅ ${up.name} installiert! Das wird helfen.`), 500);
+      };
+
+      const confirmSpeicherVerkauf = () => {
+        if (speicherVerkaufMenge <= 0 || speicherVerkaufMenge > speicher) return;
+        const ertrag = speicherVerkaufMenge * 100;
+        setSpeicher(s => s - speicherVerkaufMenge);
+        setBudget(b => b + ertrag);
+        setShowSpeicherVerkauf(false);
+        setSpeicherVerkaufMenge(0);
+        setTimeout(() => addChatMessage('james', `💰 ${formatKWh(speicherVerkaufMenge)} aus Speicher verkauft! +${formatCHF(ertrag)}`), 300);
+      };
+
+      const addChatMessage = (persona, text) => {
+        const p = PERSONAS[persona];
+        setChatMessages(prev => [...prev, { id: Date.now() + Math.random(), type: 'received', persona, name: p.name, icon: p.icon, text, time: new Date().toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' }) }]);
+        if (activeApp !== 'chat') setHasNewChat(true);
+      };
+
+      const sendChat = () => {
+        if (!chatInput.trim()) return;
+        setChatMessages(prev => [...prev, { id: Date.now(), type: 'sent', text: chatInput, time: new Date().toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' }) }]);
+        const input = chatInput.toLowerCase(); setChatInput('');
+        setTimeout(() => {
+          if (input.includes('solar')) addChatMessage('bauer', 'Solaranlagen: Bei Nebel nur ~20%, bei Sonne bis 120%!');
+          else if (input.includes('speicher')) addChatMessage('watt', `Speicher: ${speicher}/${maxSpeicher}. ${speicher < 30 ? '⚠️ Wird knapp!' : '👍 Okay!'}`);
+          else addChatMessage('watt', 'Frag mich zu: Solar, Speicher oder Bilanz!');
+        }, 500);
+      };
+
+      const getQuartal = () => Math.floor(monat / 3);
+      
+      const berechneProduktion = () => {
+        if (!wetter) return 0;
+        let t = PRODUKTION.wasserkraft.basis * SAISON_WASSERKRAFT[getQuartal()];
+        t += PRODUKTION.pv_dach.basis * wetter.prod;
+        if (!roundMods.kvaAus) t += PRODUKTION.kva.basis;
+        
+        // Upgrades
+        upgrades.forEach(upId => {
+          const up = UPGRADES[upId];
+          if (up.produktion) {
+            let val = up.produktion;
+            if (upId === 'pv_gross') val *= wetter.prod;
+            if (upId === 'windrad') {
+              // Nur Sturm beeinflusst Wind positiv
+              if (wetter.id === 'sturm') val *= 2.5;
+            }
+            t += val;
+          }
+        });
+        
+        if (roundMods.prodMod) t *= roundMods.prodMod;
+        return Math.round(t);
+      };
+      
+      // Hilfsfunktion: Berechnet Verbrauch eines einzelnen Gebäudes mit allen Modifikatoren
+      const berechneGebaeudeVerbrauch = (k, stufeOverride = null) => {
+        const g = GEBAEUDE[k];
+        if (!g) return 0;
+        
+        const s = stufeOverride !== null ? stufeOverride : (gebaeudeStates[k] || 1);
+        const m = MASSNAHMEN[k]?.[s - 1];
+        const quartal = getQuartal();
+        
+        // Basis-Verbrauch × Massnahmen-Faktor × Saison-Faktor
+        let v = g.verbrauch * (m?.faktor || 1) * (g.saison?.[quartal] || 1);
+        
+        // Wetter-Effekt
+        if (wetter) v *= wetter.verb;
+        
+        // Permanente Boni
+        v *= (1 - permBonuses.effizienz);
+        if (upgrades.includes('smart_grid')) v *= (1 - UPGRADES.smart_grid.effizienz);
+        
+        // Temporäre Runden-Modifikatoren
+        if (roundMods.globalSpar) v *= (1 - roundMods.globalSpar);
+        if (roundMods.verbrauchMod) v *= roundMods.verbrauchMod;
+        if (roundMods.buergerSparen) v *= (1 - roundMods.buergerSparen);
+        
+        // Fernwärme (nur im Winter wenn KVA aktiv)
+        const istWinter = quartal === 3;
+        const kvaAktiv = !roundMods.kvaAus;
+        if (istWinter && kvaAktiv && PRODUKTION.kva.fernwaerme.gebaeude.includes(k)) {
+          v *= (1 - PRODUKTION.kva.fernwaerme.winterBonus);
+        }
+        
+        // Wärmepumpen (nur im Winter)
+        if (istWinter && upgrades.includes('waermepumpe')) {
+          v *= (1 - UPGRADES.waermepumpe.winter);
+        }
+        
+        return v; // Nicht runden - Rundung erfolgt bei Summe oder Anzeige
+      };
+
+      const berechneVerbrauch = () => {
+        if (!wetter) return 0;
+        let t = 0;
+        Object.keys(GEBAEUDE).forEach(k => {
+          t += berechneGebaeudeVerbrauch(k);
+        });
+        return Math.round(t);
+      };
+
+      const produktion = berechneProduktion();
+      const verbrauch = berechneVerbrauch();
+      const bilanz = produktion - verbrauch;
+
+      const berechnePendingZufriedenheit = () => {
+        let zufCh = 0;
+        Object.keys(GEBAEUDE).forEach(k => {
+          const s = gebaeudeStates[k] || 1;
+          const m = MASSNAHMEN[k]?.[s - 1];
+          if (m) zufCh += m.zufriedenheit;
+        });
+        if (roundMods.zufriedenheit) zufCh += roundMods.zufriedenheit;
+        // Bürgerservice halbiert negative Auswirkungen
+        if (zufCh < 0 && upgrades.includes('buergerservice')) {
+          zufCh *= (1 - UPGRADES.buergerservice.zufriedenheitSchutz);
+        }
+        return Math.round(zufCh);
+      };
+
+      const pendingZuf = berechnePendingZufriedenheit();
+
+      const handleMonatBeendenClick = () => { setShowConfirm(true); };
+
+      const confirmEndMonth = () => {
+        setShowConfirm(false);
+        let newSp = speicher, newBu = budget, imp = 0, aus = 0, verkauft = 0, gespeichert = 0;
+        
+        if (bilanz >= 0) {
+          // Überschuss: User hat entschieden wie viel verkauft wird
+          verkauft = verkaufMenge;
+          const rest = bilanz - verkauft;
+          const freiImSpeicher = maxSpeicher - speicher;
+          gespeichert = Math.min(rest, freiImSpeicher);
+          // Rest geht verloren wenn Speicher voll
+          newSp = speicher + gespeichert;
+          // Verkauf bringt 100 CHF pro Einheit
+          if (verkauft > 0) newBu += verkauft * 100;
+        } else {
+          const def = Math.abs(bilanz);
+          if (defizitPlan === 'speicher') {
+            aus = Math.min(speicher, def);
+            imp = def - aus;
+            newSp = speicher - aus;
+          } else if (defizitPlan === 'import') {
+            imp = def;
+          } else {
+            aus = Math.min(speicher, def);
+            imp = def - aus;
+            newSp = speicher - aus;
+          }
+          // Free Import durch Aktionskarte?
+          if (!roundMods.freeImport) {
+            newBu -= imp * 150;
+          }
+        }
+        
+        let newCo2 = co2;
+        if (!roundMods.kvaAus) newCo2 += PRODUKTION.kva.co2;
+        if (imp > 0) newCo2 += Math.ceil(imp / 20);
+        
+        // Zufriedenheitsbonus für Speichern: +1% pro 10'000 kWh, max +3%
+        const speicherBonus = gespeichert > 0 ? Math.min(3, Math.floor(gespeichert / 10)) : 0;
+        // Zufriedenheitsbonus für Verkauf: +1% pro 10'000 kWh, max +5%
+        const verkaufBonus = verkauft > 0 ? Math.min(5, Math.floor(verkauft / 10)) : 0;
+        const totalZufChange = pendingZuf + speicherBonus + verkaufBonus;
+        const newZuf = clamp(zufriedenheit + totalZufChange, 0, 100);
+        const basePts = bilanz >= 0 ? 10 : (newBu >= 0 ? 5 : 0);
+        const ptsMultiplier = { easy: 1, normal: 1.5, hard: 2 }[difficulty] || 1;
+        const pts = Math.round(basePts * ptsMultiplier);
+        
+        setStats(p => ({ ...p, totalImport: p.totalImport + imp, totalAusSpeicher: p.totalAusSpeicher + aus }));
+        setSummaryData({ 
+          monatName: MONATE[monat], produktion, verbrauch, bilanz, 
+          ausSpeicher: aus, importMenge: imp, gespeichert, verkauft,
+          speicherVorher: speicher, speicherNachher: newSp,
+          importKosten: roundMods.freeImport ? 0 : imp * 150,
+          verkaufErtrag: verkauft * 100,
+          zufBefore: zufriedenheit, zufChange: totalZufChange, zufAfter: newZuf, points: pts,
+          speicherBonus, verkaufBonus
+        });
+        setShowSummary(true);
+        
+        setSpeicher(newSp); setBudget(newBu); setCo2(newCo2); setZufriedenheit(newZuf);
+        setPunkte(p => p + pts + Math.round(Math.floor(newZuf / 10) * ptsMultiplier));
+      };
+
+      const proceedToNextMonth = () => {
+        setShowSummary(false); setRoundMods({}); setDefizitPlan('speicher'); setVerkaufMenge(0);
+        
+        // Game Over wenn Budget < 0
+        if (budget < 0) {
+          setPhase('gameover');
+          return;
+        }
+        
+        // Game Over wenn Zufriedenheit = 0
+        if (zufriedenheit < 30) {
+          setPhase('gameover');
+          return;
+        }
+        
+        const next = monat + 1;
+        if (next >= 12) { setPhase('end'); return; }
+        
+        // Events ab Monat 2 aktivieren
+        if (next >= 2) setEventsEnabled(true);
+        
+        const q = Math.floor(next / 3);
+        const prevQ = Math.floor(monat / 3);
+        const w = getSeasonalWetter(q);
+        setWetter(w); setWochenWetter([w, getSeasonalWetter(q), getSeasonalWetter(q), getSeasonalWetter(q)]);
+        
+        // Saisonale Hinweise beim Quartalswechsel
+        if (q !== prevQ) {
+          const saisonTipps = [
+            '🌸 Frühling! Die Tage werden länger – Solar liefert mehr, aber Heizung läuft noch.',
+            '☀️ Sommer! Schulen haben Ferien, Hallenbad weniger besucht. Aber: Wasserwerk arbeitet mehr!',
+            '🍂 Herbst! Tage werden kürzer, Beleuchtung braucht mehr Strom.',
+            '❄️ Winter! Heizperiode beginnt. Der Verbrauch steigt massiv – plane voraus!'
+          ];
+          setTimeout(() => addChatMessage('james', saisonTipps[q]), 600);
+        }
+        
+        // Event-Wahrscheinlichkeit je nach Schwierigkeit
+        const eventChance = { easy: 0.25, normal: 0.35, hard: 0.50 }[difficulty] || 0.35;
+        if (eventsEnabled && Math.random() < eventChance) setTimeout(() => setShowEvent(random(EVENTS)), 500);
+        if (speicher < 25) setTimeout(() => addChatMessage('james', '⚠️ Speicher wird knapp!'), 1200);
+        if (budget < 10000 && budget >= 0) setTimeout(() => addChatMessage('james', '💸 Achtung! Budget wird knapp. Bei unter 0 ist Game Over!'), 1400);
+        if (zufriedenheit < 50 && zufriedenheit >= 40) {
+          setTimeout(() => setInfoPopup({ 
+            title: '⚠️ Warnung', 
+            icon: '😟', 
+            content: 'Die Zufriedenheit ist unter 50% gefallen!\n\nDie Bevölkerung wird unruhig. Wenn sie unter 30% fällt, ist das Spiel vorbei!\n\n💡 Tipp: Reduziere Sparmassnahmen oder nutze das Bürgerfest.' 
+          }), 500);
+        }
+        if (zufriedenheit < 40 && zufriedenheit >= 30) {
+          setTimeout(() => setInfoPopup({ 
+            title: '🚨 KRITISCH', 
+            icon: '😠', 
+            content: 'Die Zufriedenheit ist unter 40%!\n\nNoch ein paar Prozent und die Bevölkerung rebelliert!\n\n⚠️ Bei unter 30% ist GAME OVER!' 
+          }), 500);
+        }
+        if (w.id === 'nebel') setTimeout(() => addChatMessage('bauer', '🌫️ Dichter Nebel! Solar liefert fast nichts.'), 1500);
+        if (w.id === 'hochnebel') setTimeout(() => addChatMessage('bauer', '☁️ Hochnebel - typisch für die Schweiz. Solar läuft auf Sparflamme.'), 1500);
+        // Alle 3 Monate neue Karte
+        if (next % 3 === 0) {
+          const available = AKTIONSKARTEN.filter(c => !hand.find(h => h.id === c.id) && !usedCards.includes(c.id));
+          if (available.length > 0) {
+            setHand(h => [...h, random(available)]);
+            setTimeout(() => addChatMessage('james', '🎴 Du hast eine neue Aktionskarte erhalten!'), 1800);
+          }
+        }
+        setMonat(next);
+      };
+
+      const handleEventChoice = (c) => {
+        const e = c.effect;
+        if (e.budgetCost) setBudget(b => b - e.budgetCost);
+        if (e.budget) setBudget(b => b + e.budget);
+        if (e.zufriedenheit) setRoundMods(m => ({ ...m, zufriedenheit: e.zufriedenheit }));
+        if (e.globalSpar) setRoundMods(m => ({ ...m, globalSpar: e.globalSpar }));
+        if (e.verbrauchMod) setRoundMods(m => ({ ...m, verbrauchMod: e.verbrauchMod }));
+        if (e.kvaAus) setRoundMods(m => ({ ...m, kvaAus: true }));
+        if (e.permEffizienz) setPermBonuses(p => ({ ...p, effizienz: p.effizienz + e.permEffizienz }));
+        setShowEvent(null);
+      };
+      
+      // Get current season (0=spring, 1=summer, 2=autumn, 3=winter)
+      const getSeason = () => Math.floor(monat / 3);
+      
+      // Calculate sun/moon position based on time of day
+      // Sunrise varies by season: Winter ~7:30, Summer ~5:30
+      const getSunTimes = () => {
+        const season = getSeason();
+        const sunriseHours = [6.5, 5.5, 6.5, 7.5][season]; // Spring, Summer, Autumn, Winter
+        const sunsetHours = [20, 21, 19, 17][season];
+        return { sunrise: sunriseHours / 24, sunset: sunsetHours / 24 };
+      };
+      
+      // Calculate sky color based on time and weather
+      const getSkyGradient = () => {
+        const { sunrise, sunset } = getSunTimes();
+        const t = timeOfDay;
+        
+        // Check if it's overcast weather
+        const isOvercast = wetter && ['regen', 'nebel', 'hochnebel', 'sturm', 'kaelte'].includes(wetter.id);
+        const isPartlyCloudy = wetter && wetter.id === 'bewoelkt';
+        
+        if (isOvercast) {
+          // Gray sky for bad weather
+          if (t < sunrise - 0.05 || t > sunset + 0.05) {
+            return 'linear-gradient(180deg, #1a1a2a 0%, #2a2a3a 50%)';
+          }
+          return 'linear-gradient(180deg, #6a7a8a 0%, #8a9aaa 30%, #9aabbb 50%)';
+        }
+        
+        // Night
+        if (t < sunrise - 0.08 || t > sunset + 0.08) {
+          return 'linear-gradient(180deg, #0a0a1a 0%, #1a1a3a 30%, #2a2a4a 50%)';
+        }
+        
+        // Dawn
+        if (t >= sunrise - 0.08 && t < sunrise + 0.04) {
+          const progress = (t - (sunrise - 0.08)) / 0.12;
+          return `linear-gradient(180deg, 
+            rgba(40,40,80,${1-progress}) 0%, 
+            rgba(255,${100 + progress*100},${50 + progress*100},${0.5 + progress*0.5}) 30%,
+            rgba(255,${180 + progress*50},${100 + progress*80},${0.8}) 50%)`;
+        }
+        
+        // Dusk
+        if (t > sunset - 0.04 && t <= sunset + 0.08) {
+          const progress = (t - (sunset - 0.04)) / 0.12;
+          return `linear-gradient(180deg, 
+            rgba(${80 - progress*70},${60 - progress*50},${120 - progress*80},1) 0%, 
+            rgba(255,${150 - progress*100},${80 - progress*60},${1 - progress*0.3}) 30%,
+            rgba(255,${200 - progress*150},${150 - progress*100},${0.9 - progress*0.4}) 50%)`;
+        }
+        
+        // Day
+        if (isPartlyCloudy) {
+          return 'linear-gradient(180deg, #5a9fda 0%, #7ab8ea 30%, #9ad0f5 50%)';
+        }
+        return 'linear-gradient(180deg, #4a90d9 0%, #6aafe9 30%, #8acef8 50%)';
+      };
+      
+      // Calculate sun position with seasonal arc variation
+      // Summer: wide arc (5% to 95%), high peak (5% from top)
+      // Winter: narrow arc (25% to 75%), low peak (35% from top, near horizon)
+      const getSunPosition = () => {
+        const { sunrise, sunset } = getSunTimes();
+        const t = timeOfDay;
+        const season = getSeason();
+        
+        if (t < sunrise || t > sunset) return null;
+        
+        const dayProgress = (t - sunrise) / (sunset - sunrise);
+        
+        // Seasonal arc width: Summer=wide, Winter=narrow
+        // Season: 0=spring, 1=summer, 2=autumn, 3=winter
+        const arcStart = [15, 5, 15, 25][season];  // Left edge %
+        const arcEnd = [85, 95, 85, 75][season];   // Right edge %
+        const peakHeight = [12, 5, 12, 32][season]; // Top point % (lower = higher in sky)
+        const horizonY = 42; // Horizon is at roughly 45%
+        
+        const x = arcStart + dayProgress * (arcEnd - arcStart);
+        // Parabolic arc: starts at horizon, peaks at peakHeight, ends at horizon
+        const y = horizonY - Math.sin(dayProgress * Math.PI) * (horizonY - peakHeight);
+        
+        return { x, y, visible: true };
+      };
+      
+      // Calculate moon position (similar arc to sun but at night)
+      const getMoonPosition = () => {
+        const { sunrise, sunset } = getSunTimes();
+        const t = timeOfDay;
+        
+        // Moon visible from sunset to sunrise
+        if (t > sunrise + 0.03 && t < sunset - 0.03) return null;
+        
+        let nightProgress;
+        const nightDuration = 1 - sunset + sunrise;
+        
+        if (t >= sunset - 0.03) {
+          nightProgress = (t - (sunset - 0.03)) / (nightDuration + 0.06);
+        } else {
+          nightProgress = (1 - sunset + 0.03 + t) / (nightDuration + 0.06);
+        }
+        
+        // Moon arc is moderate, doesn't vary as much by season
+        const x = 15 + nightProgress * 70;
+        const y = 40 - Math.sin(nightProgress * Math.PI) * 28; // Peak at about 12%
+        
+        return { x, y, visible: true };
+      };
+      
+      // Generate stars for night sky
+      const stars = useMemo(() => {
+        const starList = [];
+        for (let i = 0; i < 50; i++) {
+          starList.push({
+            x: Math.random() * 100,
+            y: Math.random() * 40, // Only in top 40%
+            delay: Math.random() * 2,
+            size: 1 + Math.random() * 2
+          });
+        }
+        return starList;
+      }, []);
+
+      // Render SKY elements (scrolls with image) - behind village PNG
+      const renderSky = useMemo(() => {
+        const elements = [];
+        const sunPos = getSunPosition();
+        const moonPos = getMoonPosition();
+        const isOvercast = wetter && ['regen', 'nebel', 'hochnebel', 'sturm', 'kaelte'].includes(wetter.id);
+        
+        // Sky gradient
+        elements.push(
+          <div key="sky" className="sky-gradient" style={{ background: getSkyGradient() }} />
+        );
+        
+        // Stars at night
+        if (nightIntensity > 0.3 && !isOvercast) {
+          stars.forEach((star, i) => {
+            elements.push(
+              <div key={`star-${i}`} className="star" style={{
+                left: `${star.x}%`,
+                top: `${star.y}%`,
+                width: `${star.size}px`,
+                height: `${star.size}px`,
+                animationDelay: `${star.delay}s`,
+                opacity: Math.min(1, (nightIntensity - 0.3) * 2) * 0.8
+              }} />
+            );
+          });
+        }
+        
+        // Sun (only if not overcast and daytime)
+        if (sunPos && !isOvercast) {
+          elements.push(
+            <div key="sun" className="sun" style={{ 
+              left: `${sunPos.x}%`, 
+              top: `${sunPos.y}%`,
+              transform: 'translate(-50%, -50%)'
+            }} />
+          );
+        }
+        
+        // Moon
+        if (moonPos && !isOvercast) {
+          elements.push(
+            <div key="moon" className="moon" style={{ 
+              left: `${moonPos.x}%`, 
+              top: `${moonPos.y}%`,
+              transform: 'translate(-50%, -50%)',
+              opacity: nightIntensity > 0.2 ? Math.min(1, (nightIntensity - 0.2) * 2.5) : 0
+            }} />
+          );
+        }
+        
+        return elements;
+      }, [timeOfDay, wetter, monat, nightIntensity, stars]);
+      
+      // Render ATMOSPHERE elements (fixed on screen) - clouds, rain, fog overlay
+      const renderAtmosphere = useMemo(() => {
+        const elements = [];
+        const season = getSeason();
+        const isWinter = season === 3;
+        const isRaining = wetter && (wetter.id === 'regen' || wetter.id === 'kaelte');
+        const isHochnebel = wetter && wetter.id === 'hochnebel';
+        const isNebel = wetter && wetter.id === 'nebel';
+        
+        // Clouds based on weather (NOT for nebel - nebel has no clouds, just fog)
+        if (wetter && !isNebel) {
+          const isGray = ['regen', 'sturm', 'kaelte', 'hochnebel'].includes(wetter.id);
+          const isWindy = wetter.id === 'sturm';
+          const isCloudy = wetter.id === 'bewoelkt';
+          
+          // Cloud counts: hochnebel=30 (full coverage), rain/cold=25, cloudy=18, storm=12
+          const cloudCount = isHochnebel ? 30 : isRaining ? 25 : isCloudy ? 18 : isWindy ? 12 : 0;
+          
+          // Speed: storm=very fast, hochnebel=very slow (almost static), rain=slow, cloudy=medium
+          const baseSpeed = isWindy ? 2 : isHochnebel ? 60 : isRaining ? 30 : 20;
+          
+          for (let i = 0; i < cloudCount; i++) {
+            const speed = baseSpeed + (i % 4) * (isWindy ? 0.8 : isHochnebel ? 10 : 4);
+            // Hochnebel: compact layer at top (0-25%), Rain: full coverage, Cloudy: spread out
+            const rows = isHochnebel ? 5 : isRaining ? 6 : 5;
+            const row = i % rows;
+            const topPos = isHochnebel ? (1 + row * 5) : (2 + row * (isRaining ? 6 : 7));
+            elements.push(
+              <div key={`cloud-${i}`} className={`cloud ${isGray ? 'gray' : ''}`} style={{
+                top: `${topPos}%`,
+                animation: `cloud-drift ${speed}s linear infinite`,
+                animationDelay: `${-i * (speed / cloudCount) * 0.6}s`,
+                fontSize: `${isHochnebel ? (35 + (i % 3) * 8) : (32 + (i % 4) * 10)}px`,
+                opacity: isHochnebel ? 0.92 : isRaining ? 0.95 : isCloudy ? 0.9 : isWindy ? 0.95 : 0.85
+              }}>☁️</div>
+            );
+          }
+        }
+        
+        // Rain or Snow (falls from sky through whole view)
+        if (isRaining) {
+          const isSnow = isWinter || wetter.id === 'kaelte';
+          const particleCount = isSnow ? 60 : 80;
+          
+          if (isSnow) {
+            for (let i = 0; i < particleCount; i++) {
+              elements.push(
+                <div key={`snow-${i}`} className="snowflake" style={{
+                  left: `${(i * 1.7) % 100}%`,
+                  top: `${-5 - (i % 10) * 2}%`,
+                  animationDelay: `${(i * 0.08) % 3}s`,
+                  fontSize: `${5 + (i % 5) * 2}px`
+                }}>❄</div>
+              );
+            }
+          } else {
+            for (let i = 0; i < particleCount; i++) {
+              elements.push(
+                <div key={`rain-${i}`} className="raindrop" style={{
+                  left: `${(i * 1.25) % 100}%`,
+                  top: `${-2 - (i % 5)}%`,
+                  animationDelay: `${(i * 0.025) % 0.5}s`,
+                  height: `${10 + (i % 3) * 4}px`
+                }} />
+              );
+            }
+          }
+        }
+        
+        // Nebel (fog) - dense gray overlay over ENTIRE screen, no clouds
+        if (isNebel) {
+          elements.push(
+            <div key="fog-overlay" style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'rgba(180, 190, 200, 0.50)',
+              pointerEvents: 'none'
+            }} />
+          );
+          // Additional fog gradient at bottom for depth
+          elements.push(
+            <div key="fog-gradient" style={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: '60%',
+              background: 'linear-gradient(0deg, rgba(200,210,220,0.4) 0%, transparent 100%)',
+              pointerEvents: 'none'
+            }} />
+          );
+        }
+        
+        return elements;
+      }, [wetter, monat]);
+
+      // Calculate night intensity (0=day, 1=night)
+      const nightIntensity = useMemo(() => {
+        if (timeOfDay < 0.25) return 1 - (timeOfDay / 0.25);
+        if (timeOfDay > 0.75) return (timeOfDay - 0.75) / 0.25;
+        return 0;
+      }, [timeOfDay]);
+      
+      // Get light state for a building based on saving measures
+      // strassenbeleuchtung is a special category - it dims at night when energy savings are active globally
+      const getLightState = (buildingId) => {
+        if (buildingId === '_always') return 'on';
+        if (buildingId === 'strassenbeleuchtung') {
+          // Street lights dim if any buildings are in saving mode
+          const totalSavings = Object.values(gebaeudeStates).filter(s => s > 1).length;
+          if (totalSavings >= 4) return 'off';
+          if (totalSavings >= 2) return 'dimmed';
+          return 'on';
+        }
+        const state = gebaeudeStates[buildingId] || 1;
+        if (state === 1) return 'on';
+        if (state >= 3) return 'off';
+        return 'dimmed';
+      };
+      
+      // Render light points
+      const renderLights = useMemo(() => {
+        const lights = gameConfig?.lights || [];
+        if (nightIntensity < 0.1 || lights.length === 0) return null;
+        
+        const baseOpacity = Math.min(1, nightIntensity * 1.2);
+        
+        return lights.map((light, i) => {
+          const state = getLightState(light.building);
+          if (state === 'off') return null;
+          
+          const configSize = light.size || 8;
+          const opacity = state === 'dimmed' ? 0.4 : 1;
+          const size = state === 'dimmed' ? configSize * 0.7 : configSize;
+          const color = light.color || '#fff7aa';
+          
+          return (
+            <div key={`light-${i}`} className="light-point" style={{
+              left: `${light.x}%`,
+              top: `${light.y}%`,
+              width: `${size}px`,
+              height: `${size}px`,
+              background: color,
+              opacity: baseOpacity * opacity,
+              boxShadow: `0 0 ${size * 2}px ${size}px ${color}88, 0 0 ${size * 4}px ${size * 2}px ${color}44`,
+            }} />
+          );
+        });
+      }, [nightIntensity, gebaeudeStates, gameConfig]);
+      
+      // Format time display
+      const formatTimeDisplay = (t) => {
+        const hours = Math.floor(t * 24);
+        return `${hours.toString().padStart(2, '0')}:00`;
+      };
+      
+      // Image drag handlers
+      const handleMouseDown = (e) => {
+        if (!cityViewRef.current) return;
+        setIsDragging(true);
+        dragStartRef.current = {
+          x: e.pageX,
+          scrollLeft: cityViewRef.current.scrollLeft
+        };
+      };
+      
+      const handleMouseMove = (e) => {
+        if (!isDragging || !cityViewRef.current) return;
+        e.preventDefault();
+        const walk = (e.pageX - dragStartRef.current.x) * 1.2;
+        cityViewRef.current.scrollLeft = dragStartRef.current.scrollLeft - walk;
+      };
+      
+      const handleMouseUp = () => {
+        setIsDragging(false);
+      };
+      
+      // Touch handlers for image scrolling
+      const handleTouchStart = (e) => {
+        if (!cityViewRef.current) return;
+        dragStartRef.current = {
+          x: e.touches[0].pageX,
+          scrollLeft: cityViewRef.current.scrollLeft
+        };
+      };
+      
+      const handleTouchMove = (e) => {
+        if (!cityViewRef.current) return;
+        const walk = dragStartRef.current.x - e.touches[0].pageX;
+        cityViewRef.current.scrollLeft = dragStartRef.current.scrollLeft + walk;
+      };
+
+      const displayName = stadtName || 'Energiestadt';
+      const timeStr = `${String(phoneTime.h).padStart(2, '0')}:${String(phoneTime.m).padStart(2, '0')}`;
+
+      // Load configuration file
+      const handleConfigLoad = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          try {
+            const config = JSON.parse(ev.target.result);
+            if (!config.image) {
+              alert('Keine Bilddaten in der Konfiguration gefunden!');
+              return;
+            }
+            setGameConfig(config);
+            setPhase('start');
+          } catch (err) {
+            alert('Fehler beim Laden: ' + err.message);
+          }
+        };
+        reader.readAsText(file);
+      };
+
+      // Config loading screen
+      if (phase === 'config') {
+        return (
+          <div style={{
+            minHeight: '100vh',
+            background: 'linear-gradient(135deg, #1a1a2e 0%, #0f0f1a 100%)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 40,
+            color: 'white',
+            fontFamily: 'system-ui, sans-serif'
+          }}>
+            <div style={{ fontSize: '4rem', marginBottom: 20 }}>⚡</div>
+            <h1 style={{ fontSize: '1.8rem', marginBottom: 8 }}>Stadtwerke Energiemanager</h1>
+            <p style={{ color: '#888', marginBottom: 40 }}>Schweizer Energie-Simulation</p>
+            
+            <div 
+              onClick={() => configInputRef.current?.click()}
+              style={{
+                width: '100%',
+                maxWidth: 400,
+                border: '3px dashed #444',
+                borderRadius: 16,
+                padding: '50px 30px',
+                textAlign: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+              onMouseOver={(e) => { e.currentTarget.style.borderColor = '#00aa66'; e.currentTarget.style.background = 'rgba(0,170,102,0.1)'; }}
+              onMouseOut={(e) => { e.currentTarget.style.borderColor = '#444'; e.currentTarget.style.background = 'transparent'; }}
+            >
+              <div style={{ fontSize: '3rem', marginBottom: 16 }}>📂</div>
+              <div style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 8 }}>Dorf-Konfiguration laden</div>
+              <div style={{ fontSize: '0.85rem', color: '#888' }}>
+                Erstellt mit dem Positions-Helper
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#666', marginTop: 12 }}>
+                (dorf-konfiguration.json)
+              </div>
+            </div>
+            
+            <input 
+              type="file" 
+              ref={configInputRef}
+              accept=".json"
+              style={{ display: 'none' }}
+              onChange={handleConfigLoad}
+            />
+            
+            <p style={{ marginTop: 40, fontSize: '0.8rem', color: '#555', maxWidth: 400, textAlign: 'center', lineHeight: 1.5 }}>
+              💡 Nutze den <strong>position-helper.html</strong> um ein Dorfbild hochzuladen und alle Gebäude, Anlagen und Lichter zu positionieren.
+            </p>
+          </div>
+        );
+      }
+
+      if (phase === 'start') {
+        return (
+          <div className="phone-fullscreen" onClick={handleStartClick} style={{ cursor: 'pointer' }}>
+            <div className="phone-device">
+              <div className="phone-screen-inner" style={{ justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
+                <div className="phone-notch" />
+                <div style={{ fontSize: '4rem', marginBottom: 20 }}>📱</div>
+                <div style={{ fontSize: '1.1rem', color: 'white', fontWeight: 600, marginBottom: 10 }}>Tippe um zu starten</div>
+                <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)' }}>(Ton wird aktiviert)</div>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      if (phase === 'phone') {
+        if (missedCalls >= 10) {
+          return (
+            <div className="phone-fullscreen">
+              <div className="phone-device">
+                <div className="phone-screen-inner" style={{ justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
+                  <div className="phone-notch" />
+                  <div style={{ fontSize: '4rem', marginBottom: 20 }}>😔</div>
+                  <div style={{ fontSize: '1.2rem', color: 'white', fontWeight: 600, marginBottom: 10 }}>Der Stadtrat hat aufgegeben</div>
+                  <div style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.6)', padding: '0 20px' }}>Nach {missedCalls} ignorierten Anrufen...</div>
+                  <button onClick={() => window.location.reload()} style={{ marginTop: 30, padding: '14px 30px', background: 'var(--bg-card)', border: '1px solid var(--text-muted)', borderRadius: 30, color: 'white', cursor: 'pointer' }}>🔄 Nochmal</button>
+                </div>
+              </div>
+            </div>
+          );
+        }
+        if (!isRinging) {
+          return (
+            <div className="phone-fullscreen">
+              <div className="phone-device">
+                <div className="phone-screen-inner" style={{ justifyContent: 'center', alignItems: 'center' }}>
+                  <div className="phone-notch" />
+                  <div className="phone-time-display" style={{ marginTop: 0 }}><div className="time">{timeStr}</div><div className="date">Mittwoch, 19. März</div></div>
+                  {missedCalls > 0 && <div className="missed-calls-banner" style={{ marginTop: 30 }}><strong>📵 {missedCalls} verpasste{missedCalls > 1 ? ' Anrufe' : 'r Anruf'}</strong>vom Stadtrat</div>}
+                </div>
+              </div>
+            </div>
+          );
+        }
+        return (
+          <div className="phone-fullscreen">
+            <div className="phone-device vibrating">
+              <div className="phone-screen-inner">
+                <div className="phone-notch" />
+                <div className="phone-status-bar"><span>{timeStr}</span><span>📶 🔋</span></div>
+                <div className="phone-time-display"><div className="time">{timeStr}</div><div className="date">Mittwoch, 19. März</div></div>
+                {missedCalls > 0 && <div className="missed-calls-banner"><strong>📵 {missedCalls} verpasste{missedCalls > 1 ? ' Anrufe' : 'r Anruf'}</strong>Stadtrat versucht dich zu erreichen!</div>}
+                <div className="incoming-call"><div className="caller-avatar">🏛️</div><div className="caller-label">Eingehender Anruf</div><div className="caller-name">Stadtrat</div></div>
+                <div className="call-actions">
+                  <div className="call-btn-wrapper"><button className="call-btn decline" onClick={handleDecline}>📵</button><span className="call-btn-label">Ablehnen</span></div>
+                  <div className="call-btn-wrapper"><button className="call-btn answer" onClick={handleAnswer}>📞</button><span className="call-btn-label">Annehmen</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      if (phase === 'intro') {
+        const messages = [
+          { text: missedCalls >= 2 ? "Endlich! Wir versuchen dich seit Minuten zu erreichen! Es ist ein NOTFALL." : "Guten Morgen... tut mir leid für die frühe Störung.", color: 'info' },
+          { text: "Wir haben eine Krise. Die Energiemanagerin hat gestern Abend gekündigt – mitten in der angespanntesten Lage seit Jahren.", color: 'warning' },
+          { text: "Die Strompreise explodieren, und wir brauchen JETZT jemanden, der das Ruder übernimmt.", color: 'danger' },
+          { text: "Wir haben gehört, dass du dich mit Energie auskennst. Die Stadt braucht dich. Bist du bereit?", color: '' }
+        ];
+        return (
+          <div className="phone-fullscreen">
+            <div className="phone-device">
+              <div className="phone-screen-inner">
+                <div className="phone-notch" />
+                <div style={{ textAlign: 'center', marginTop: 50, marginBottom: 16 }}>
+                  <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)' }}>📞 Anruf verbunden</div>
+                  <div style={{ fontSize: '1.2rem', color: 'white', fontWeight: 600, marginTop: 4 }}>🏛️ Stadtrat</div>
+                  {missedCalls > 0 && <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', marginTop: 8 }}>Nach {missedCalls + 1} Versuchen...</div>}
+                </div>
+                <div style={{ flex: 1, padding: '0 8px', overflowY: 'auto' }}>
+                  {messages.map((msg, i) => (<div key={i} className={`intro-message ${msg.color}`}><p>«{msg.text}»</p></div>))}
+                </div>
+                <div style={{ padding: '12px 0', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <button onClick={() => { speechSynthesis.cancel(); setPhase('setup'); }} style={{ background: 'linear-gradient(135deg, var(--positive), #00a854)', border: 'none', borderRadius: 30, padding: '14px 24px', color: 'white', fontWeight: 600, fontSize: '1rem', cursor: 'pointer' }}>💪 «Ich bin bereit!»</button>
+                  <div style={{ textAlign: 'center', fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>Schweizer Energie-Simulation</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      if (phase === 'setup') {
+        return (
+          <div className="phone-fullscreen">
+            <div className="phone-device">
+              <div className="phone-screen-inner">
+                <div className="phone-notch" />
+                <div className="phone-status-bar"><span>{timeStr}</span><span>📶 🔋</span></div>
+                <div className="phone-content">
+                  <h2>⚡ Energiemanager</h2>
+                  <p className="subtitle">Rette die Energieversorgung!</p>
+                  <div className="name-input-group">
+                    <label>Name deiner Stadt</label>
+                    <input type="text" className="name-input" placeholder="z.B. St. Gallen, Gossau..." value={stadtName} onChange={e => setStadtName(e.target.value)} maxLength={20} />
+                  </div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>Schwierigkeitsgrad</label>
+                  <div className="diff-options">
+                    {[{ id: 'easy', name: 'Einfach', emoji: '🌱', desc1: "CHF 80'000, 50'000 kWh", desc2: "1× Punkte" }, { id: 'normal', name: 'Normal', emoji: '⚡', desc1: "CHF 60'000, 30'000 kWh", desc2: "1.5× Punkte" }, { id: 'hard', name: 'Schwer', emoji: '🔥', desc1: "CHF 45'000, 10'000 kWh", desc2: "2× Punkte" }].map(d => (
+                      <div key={d.id} className={`diff-option ${difficulty === d.id ? 'selected' : ''}`} onClick={() => setDifficulty(d.id)}>
+                        <span className="emoji">{d.emoji}</span>
+                        <div className="info"><div className="name">{d.name}</div><div className="desc">{d.desc1}<br/>{d.desc2}</div></div>
+                      </div>
+                    ))}
+                  </div>
+                  <button className="start-game-btn" onClick={() => { setPhase('game'); initGame(); }} disabled={!stadtName.trim()} style={{ opacity: stadtName.trim() ? 1 : 0.5, cursor: stadtName.trim() ? 'pointer' : 'not-allowed' }}>Los geht's! 🚀</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      if (phase === 'gameover') {
+        const reason = budget < 0 ? 'bankrott' : 'aufstand';
+        return (
+          <div className="end-screen" style={{ background: 'linear-gradient(135deg, #1a0a0a 0%, #2d1515 100%)' }}>
+            <div className="end-content">
+              <h1 style={{ color: 'var(--negative)' }}>Game Over 💀</h1>
+              <p className="subtitle">
+                {reason === 'bankrott' 
+                  ? `${displayName} ist bankrott! Die Stadt kann ihre Rechnungen nicht mehr bezahlen.`
+                  : `Die Bevölkerung von ${displayName} hat rebelliert! Die Zufriedenheit ist unter 30% gefallen.`
+                }
+              </p>
+              <div style={{ fontSize: '3rem', margin: '20px 0' }}>{reason === 'bankrott' ? '💸' : '😠'}</div>
+              <div className="end-stats">
+                <div className="end-stat"><div className="icon">📅</div><div className="value">{monat + 1}</div><div className="label">Monate geschafft</div></div>
+                <div className="end-stat"><div className="icon">💰</div><div className="value" style={{ color: budget < 0 ? 'var(--negative)' : 'inherit' }}>{formatCHF(budget)}</div><div className="label">Budget</div></div>
+                <div className="end-stat"><div className="icon">😊</div><div className="value" style={{ color: zufriedenheit < 30 ? 'var(--negative)' : 'inherit' }}>{zufriedenheit}%</div><div className="label">Zufriedenheit</div></div>
+                <div className="end-stat"><div className="icon">⭐</div><div className="value">{punkte}</div><div className="label">Punkte</div></div>
+              </div>
+              <div style={{ background: 'rgba(255,255,255,0.05)', padding: 16, borderRadius: 12, marginTop: 20, width: '100%' }}>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: 0 }}>
+                  💡 <strong>Tipp:</strong> {reason === 'bankrott' 
+                    ? 'Investiere früh in eigene Produktionsanlagen, um teure Importe zu vermeiden. Verkaufe Überschuss-Strom für zusätzliches Einkommen.'
+                    : 'Halte die Zufriedenheit über 30%! Nutze das Bürgerfest (+15%) oder investiere in den Bürgerservice (halbiert Unmut).'
+                  }
+                </p>
+              </div>
+              <button className="restart-btn" onClick={() => window.location.reload()}>Nochmal versuchen</button>
+            </div>
+          </div>
+        );
+      }
+
+      if (phase === 'end') {
+        const rating = punkte >= 200 ? 'gold' : punkte >= 120 ? 'silver' : 'bronze';
+        return (
+          <div className="end-screen">
+            <div className="end-content">
+              <h1>Jahr geschafft! 🎉</h1>
+              <p className="subtitle">{displayName} hat das Jahr überstanden</p>
+              <div className={`rating ${rating}`}>{rating === 'gold' ? '⭐ Gold' : rating === 'silver' ? '🥈 Silber' : '🥉 Bronze'} – {punkte} Punkte</div>
+              <div className="end-stats">
+                <div className="end-stat"><div className="icon">😊</div><div className="value">{zufriedenheit}%</div><div className="label">Zufriedenheit</div></div>
+                <div className="end-stat"><div className="icon">🌍</div><div className="value">{co2}t</div><div className="label">CO₂</div></div>
+                <div className="end-stat"><div className="icon">💰</div><div className="value">{formatCHF(budget)}</div><div className="label">Budget</div></div>
+                <div className="end-stat"><div className="icon">📦</div><div className="value">{formatKWh(stats.totalImport)}</div><div className="label">Importiert</div></div>
+              </div>
+              <button className="restart-btn" onClick={() => window.location.reload()}>Nochmal spielen</button>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="game-container">
+          <div className="city-panel">
+            {/* Atmosphere layer - fixed position (clouds, rain, fog overlay) */}
+            <div className="weather-layer">
+              {renderAtmosphere}
+            </div>
+            
+            {/* Scrollable image area */}
+            <div 
+              className={`city-scroll ${isDragging ? 'dragging' : ''}`}
+              ref={cityViewRef}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+            >
+              <div className="city-image-wrapper">
+                {/* Sky layer - scrolls with image (sun, moon, stars, gradient) */}
+                <div className="sky-layer">
+                  {renderSky}
+                </div>
+                
+                <img src={gameConfig?.image} className="village-bg" alt="Dorf" />
+                
+                <div className="city-overlay">
+                  {/* Night darkness overlay */}
+                  <div className="night-overlay" style={{ background: `rgba(10, 15, 40, ${nightIntensity * 0.6})` }} />
+                  
+                  {/* Light points */}
+                  <div className="lights-container">
+                    {renderLights}
+                  </div>
+                  
+                  {/* Building hotspots */}
+                  <div className="hotspots-container">
+                    {Object.entries(GEBAEUDE).map(([k, g]) => {
+                      const pos = gameConfig?.gebaeude?.[k];
+                      if (!pos) return null; // Skip buildings not placed in config
+                      const s = gebaeudeStates[k] || 1;
+                      const m = MASSNAHMEN[k]?.[s - 1];
+                      const st = s === 1 ? 'normal' : s <= 2 ? 'reduziert' : 'kritisch';
+                      return (
+                        <div key={k} className="hotspot" style={{ left: `${pos.x}%`, top: `${pos.y}%` }} onClick={() => (setSelectedBuilding(k), setActiveApp('gebaeude'))}>
+                          <span className="icon">{g.icon}</span>
+                          <span className="name">{g.name}</span>
+                          {m && <span className={`status ${st}`}>{m.name}</span>}
+                        </div>
+                      );
+                    })}
+                  
+                  {/* Production hotspots */}
+                  {Object.entries(PRODUKTION).map(([k, p]) => {
+                    const pos = gameConfig?.produktion?.[k];
+                    if (!pos) return null; // Skip if not placed
+                    let out = p.basis;
+                    if (k === 'wasserkraft') out *= SAISON_WASSERKRAFT[getQuartal()];
+                    if (k === 'pv_dach' && wetter) out *= wetter.prod;
+                    if (k === 'kva' && roundMods.kvaAus) out = 0;
+                    return (
+                      <div key={k} className="hotspot production" style={{ left: `${pos.x}%`, top: `${pos.y}%` }} onClick={() => setInfoPopup({ title: p.name, icon: p.icon, content: p.info })}>
+                        <span className="icon">{p.icon}</span>
+                        <span className="name">{p.name}</span>
+                        <span className="status normal">+{formatKWh(Math.round(out))}</span>
+                      </div>
+                    );
+                  })}
+                  
+                  {/* Build slot hotspots */}
+                  {Object.entries(gameConfig?.bauplatz || {}).map(([k, pos]) => {
+                    const isBuilt = upgrades.includes(k);
+                    const up = UPGRADES[k];
+                    if (!up) return null;
+                    
+                    let out = up.produktion || 0;
+                    if (isBuilt) {
+                      if (k === 'pv_gross' && wetter) out *= wetter.prod;
+                      if (k === 'windrad' && wetter && wetter.id === 'sturm') out *= 2.5;
+                    }
+                    
+                    return (
+                      <div key={k} className={`hotspot buildslot ${isBuilt ? 'built' : ''}`} style={{ left: `${pos.x}%`, top: `${pos.y}%` }} onClick={() => isBuilt ? setInfoPopup({ title: up.name, icon: up.icon, content: up.info }) : setShowAusbau(true)}>
+                        <span className="icon">{isBuilt ? up.icon : '🔲'}</span>
+                        <span className="name">{isBuilt ? up.name : 'Bauplatz'}</span>
+                        {isBuilt && up.produktion && <span className="status normal">+{formatKWh(Math.round(out))}</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+            {/* End of scrollable area */}
+            </div>
+            
+            {/* Static UI elements - don't scroll */}
+            <div className="city-header">
+              <div><div className="city-title">{displayName}</div><div className="city-date">{MONATE[monat]} – {SAISONS[getQuartal()]}</div></div>
+            </div>
+            
+            {/* Lighting button */}
+            <div className="lighting-button">
+              {(() => {
+                const s = gebaeudeStates['strassenbeleuchtung'] || 1;
+                const m = MASSNAHMEN['strassenbeleuchtung']?.[s - 1];
+                const st = s === 1 ? 'normal' : s <= 2 ? 'reduziert' : 'kritisch';
+                const percent = [100, 70, 50, 30][s - 1] || 100;
+                return (
+                  <div className="lighting-btn" onClick={() => { setSelectedBuilding('strassenbeleuchtung'); setActiveApp('gebaeude'); }}>
+                    <span className="icon">💡</span>
+                    <span className="percent">{percent}%</span>
+                    <div className="details">
+                      <span className="name">Beleuchtung</span>
+                      <span className={`status ${st}`}>{m?.name || 'Normal'}</span>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+            
+            <div className="time-slider-container">
+              <span className="time-icon">{nightIntensity > 0.3 ? '🌙' : '☀️'}</span>
+              <input 
+                type="range" 
+                min="0" 
+                max="1" 
+                step="0.01" 
+                value={timeOfDay}
+                onChange={(e) => setTimeOfDay(parseFloat(e.target.value))}
+                onMouseDown={(e) => e.stopPropagation()}
+              />
+              <span className="time-label">{formatTimeDisplay(timeOfDay)}</span>
+            </div>
+            
+            {upgrades.filter(id => UPGRADES[id] && !UPGRADES[id].produktion).length > 0 && (
+              <div className="efficiency-badges">
+                {upgrades.filter(id => UPGRADES[id] && !UPGRADES[id].produktion).map(id => (
+                  <div key={id} className="eff-badge" onClick={() => setInfoPopup({ title: UPGRADES[id].name, icon: UPGRADES[id].icon, content: UPGRADES[id].info })}>
+                    {UPGRADES[id].icon}
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            <div className="bilanz-bar">
+              <div className="bilanz-formula">
+                <div className="item"><div className="prod">+{formatKWh(produktion)}</div><div className="label">Produktion</div></div>
+                <span className="operator">−</span>
+                <div className="item"><div className="verb">{formatKWh(verbrauch)}</div><div className="label">Verbrauch</div></div>
+                <span className="operator">=</span>
+                <div className="item"><div className={`result ${bilanz >= 0 ? 'positive' : 'negative'}`}>{bilanz >= 0 ? '+' : ''}{formatKWh(bilanz)}</div><div className="label">Bilanz</div></div>
+                <button className="info-btn" onClick={() => setInfoPopup(INFO_TEXTS.bilanz)}>?</button>
+              </div>
+              <span className="bilanz-hint"></span>
+            </div>
+          </div>
+
+          <div className="smartphone-container">
+            <div className="smartphone-area">
+              <div className="smartphone-device">
+                <div className="smartphone-screen">
+                  <div className="smartphone-notch" />
+                  <div className="smartphone-header"><span>{new Date().toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' })}</span><span>📶 🔋</span></div>
+                  <div className="app-nav">
+                    {[{ id: 'dashboard', icon: '📊', name: 'Status' }, { id: 'gebaeude', icon: '🏘️', name: 'Gebäude' }, { id: 'anlagen', icon: '⚡', name: 'Energie' }, { id: 'wetter', icon: '☀️', name: 'Wetter' }, { id: 'chat', icon: '💬', name: 'Team' }].map(a => (
+                      <div key={a.id} className={`app-tab ${activeApp === a.id ? 'active' : ''}`} onClick={() => { setActiveApp(a.id); if (a.id === 'chat') setHasNewChat(false); }}>
+                        <span className="tab-icon">{a.icon}</span><span className="tab-name">{a.name}</span>
+                        {a.id === 'chat' && hasNewChat && <div className="badge" />}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="app-content">
+                  {activeApp === 'dashboard' && (
+                    <>
+                      <div className="app-title">📊 Status</div>
+                      <div className="dashboard-grid">
+                        <div className="dash-card" onClick={() => setInfoPopup(INFO_TEXTS.budget)}><div className="label">Budget (CHF) <button className="info-btn">?</button></div><div className="icon-value"><span className="icon">💰</span><span className="value" style={{fontSize: '1rem'}}>{budget.toLocaleString('de-CH')}</span></div></div>
+                        <div className="dash-card" onClick={() => setInfoPopup(INFO_TEXTS.zufriedenheit)}><div className="label">Zufriedenheit <button className="info-btn">?</button></div><div className="icon-value"><span className="icon">😊</span><span className="value">{zufriedenheit}%</span></div></div>
+                        <div className="dash-card" onClick={() => setInfoPopup(INFO_TEXTS.co2)}><div className="label">CO₂ <button className="info-btn">?</button></div><div className="icon-value"><span className="icon">🌍</span><span className="value">{co2}t</span></div></div>
+                        <div className="dash-card" onClick={() => setInfoPopup(INFO_TEXTS.punkte)}><div className="label">Punkte <button className="info-btn">?</button></div><div className="icon-value"><span className="icon">⭐</span><span className="value">{punkte}</span></div></div>
+                        <div className="dash-card full">
+                          <div className="label">Speicher <button className="info-btn" onClick={() => setInfoPopup(INFO_TEXTS.speicher)}>?</button></div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>🔋</span>
+                            <span className="value">{formatKWh(speicher)} / {formatKWh(maxSpeicher)}</span>
+                          </div>
+                          <div className="speicher-bar"><div className="speicher-fill" style={{ width: `${(speicher/maxSpeicher)*100}%` }} /></div>
+                        </div>
+                      </div>
+                      
+                      {hand.length > 0 && (
+                        <div style={{ marginTop: 12 }}>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                            🎴 Aktionskarten
+                            <button className="info-btn" onClick={() => setInfoPopup({ title: 'Aktionskarten', icon: '🎴', content: 'Deine Joker für Notfälle!\n\n⚠️ Jede Karte kann nur EINMAL pro Spiel verwendet werden.\n\nKlicke auf eine Karte um sie zu spielen.' })}>?</button>
+                          </div>
+                          <div className="action-cards">
+                            {hand.map(card => (
+                              <div key={card.id} className={`action-card ${usedCards.includes(card.id) ? 'used' : ''}`} onClick={() => !usedCards.includes(card.id) && setInfoPopup({ title: card.name, icon: card.icon, content: card.info, action: () => useCard(card), actionLabel: '▶️ Karte spielen' })}>
+                                <div className="ac-icon">{card.icon}</div>
+                                <div className="ac-name">{card.name}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      <div style={{ marginTop: 12 }}>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 6 }}>⚡ Schnellaktionen</div>
+                        <div className="action-cards">
+                          <div className="action-card invest" onClick={() => setShowAusbau(true)}>
+                            <div className="ac-icon">🏗️</div>
+                            <div className="ac-name">Investieren</div>
+                          </div>
+                          {speicher > 0 && (
+                            <div className="action-card sell" onClick={() => { setSpeicherVerkaufMenge(Math.min(10, speicher)); setShowSpeicherVerkauf(true); }}>
+                              <div className="ac-icon">💰</div>
+                              <div className="ac-name">Verkaufen</div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                  {activeApp === 'gebaeude' && (
+                    <>
+                      <div className="app-title">🏘️ Gebäude</div>
+                      <div className="building-list">
+                        {Object.entries(GEBAEUDE).map(([k, g]) => {
+                          const s = gebaeudeStates[k] || 1;
+                          const m = MASSNAHMEN[k]?.[s - 1];
+                          const st = s === 1 ? 'normal' : s <= 2 ? 'reduziert' : 'kritisch';
+                          const v = Math.round(berechneGebaeudeVerbrauch(k));
+                          const saisonFaktor = g.saison?.[getQuartal()] || 1;
+                          return (
+                            <div key={k} className="building-card" onClick={() => setSelectedBuilding(k)}>
+                              <div className="header">
+                                <span className="b-icon">{g.icon}</span>
+                                <div className="b-info">
+                                  <div className="b-name">{g.name} {saisonFaktor !== 1 && <span style={{ fontSize: '0.65rem', color: saisonFaktor > 1 ? 'var(--negative)' : 'var(--positive)' }}>{saisonFaktor > 1 ? '▲' : '▼'}{Math.round(Math.abs(saisonFaktor - 1) * 100)}%</span>}</div>
+                                  <div className="b-desc">{g.beschreibung}</div>
+                                </div>
+                                <span className={`b-status ${st}`}>{m?.name}</span>
+                              </div>
+                              <div className="stats">
+                                <div className="stat"><span>⚡</span><span className="val">{formatKWh(v)}</span></div>
+                                {m?.zufriedenheit < 0 && <div className="stat"><span>😟</span><span className="val">{m.zufriedenheit}%</span></div>}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                  {activeApp === 'anlagen' && (
+                    <>
+                      <div className="app-title">⚡ Energie</div>
+                      {Object.entries(PRODUKTION).map(([k, p]) => {
+                        let out = p.basis, max = p.basis;
+                        if (k === 'wasserkraft') { out *= SAISON_WASSERKRAFT[getQuartal()]; max *= 1.15; }
+                        if (k === 'pv_dach' && wetter) { out *= wetter.prod; max *= 1.2; }
+                        if (k === 'kva' && roundMods.kvaAus) out = 0;
+                        return (
+                          <div key={k} className="plant-card" onClick={() => setInfoPopup({ title: p.name, icon: p.icon, content: p.info })}>
+                            <div className="header"><span className="p-icon">{p.icon}</span><div><div className="p-name">{p.name} <button className="info-btn">?</button></div><div className="p-desc">{p.desc}</div></div></div>
+                            <div className="output-bar"><div className="output-fill" style={{ width: `${(out/max)*100}%` }} /></div>
+                            <div className="output-text"><span className="current">+{formatKWh(Math.round(out))}</span><span className="max">Max: {formatKWh(Math.round(max))}</span></div>
+                          </div>
+                        );
+                      })}
+                      
+                      {upgrades.filter(id => UPGRADES[id].produktion).length > 0 && (
+                        <>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 12, marginBottom: 6 }}>🏗️ Ausgebaute Anlagen</div>
+                          {upgrades.filter(id => UPGRADES[id].produktion).map(id => {
+                            const up = UPGRADES[id];
+                            let out = up.produktion, max = up.produktion;
+                            if (id === 'pv_gross' && wetter) { out *= wetter.prod; max *= 1.2; }
+                            if (id === 'windrad' && wetter) {
+                              if (wetter.id === 'sturm') out *= 2.5;
+                              max *= 2.5;
+                            }
+                            return (
+                              <div key={id} className="plant-card" onClick={() => setInfoPopup({ title: up.name, icon: up.icon, content: up.info })}>
+                                <div className="header"><span className="p-icon">{up.icon}</span><div><div className="p-name">{up.name} <span style={{fontSize: '0.6rem', color: 'var(--positive)'}}>NEU</span></div><div className="p-desc">{up.desc}</div></div></div>
+                                <div className="output-bar"><div className="output-fill" style={{ width: `${(out/max)*100}%`, background: 'var(--solar-gold)' }} /></div>
+                                <div className="output-text"><span className="current">+{formatKWh(Math.round(out))}</span><span className="max">Max: {formatKWh(Math.round(max))}</span></div>
+                              </div>
+                            );
+                          })}
+                        </>
+                      )}
+                      
+                      {upgrades.filter(id => !UPGRADES[id].produktion).length > 0 && (
+                        <>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 12, marginBottom: 6 }}>📡 Effizienz-Upgrades</div>
+                          {upgrades.filter(id => !UPGRADES[id].produktion).map(id => {
+                            const up = UPGRADES[id];
+                            return (
+                              <div key={id} className="plant-card" onClick={() => setInfoPopup({ title: up.name, icon: up.icon, content: up.info })}>
+                                <div className="header"><span className="p-icon">{up.icon}</span><div><div className="p-name">{up.name} <span style={{fontSize: '0.6rem', color: 'var(--positive)'}}>AKTIV</span></div><div className="p-desc">{up.desc}</div></div></div>
+                              </div>
+                            );
+                          })}
+                        </>
+                      )}
+                    </>
+                  )}
+                  {activeApp === 'wetter' && (
+                    <>
+                      <div className="app-title">☀️ Wetter diesen Monat</div>
+                      {wetter && <div className="weather-current"><div className="temp-icon">{wetter.icon}</div><div className="temp-name">{wetter.name}</div><div className="temp-desc">{wetter.desc}</div></div>}
+                      <div style={{ background: 'var(--bg-dark)', borderRadius: 8, padding: 10, marginTop: 12, fontSize: '0.75rem' }}>
+                        <div style={{ marginBottom: 8, fontWeight: 600 }}>Auswirkungen auf Produktion:</div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                          <span>☀️ Solar:</span>
+                          <span style={{ color: wetter.prod >= 1 ? 'var(--positive)' : wetter.prod >= 0.7 ? 'var(--warning)' : 'var(--negative)' }}>{Math.round(wetter.prod * 100)}%</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                          <span>💨 Wind:</span>
+                          <span style={{ color: wetter.id === 'sturm' ? 'var(--positive)' : 'white' }}>{wetter.id === 'sturm' ? '250%' : '100%'}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span>🏘️ Verbrauch:</span>
+                          <span style={{ color: wetter.verb > 1.1 ? 'var(--negative)' : wetter.verb < 1 ? 'var(--positive)' : 'white' }}>{Math.round(wetter.verb * 100)}%</span>
+                        </div>
+                      </div>
+                      <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 10 }}>Das Wetter ändert sich jeden Monat und beeinflusst deine Energieproduktion.</p>
+                    </>
+                  )}
+                  {activeApp === 'chat' && (
+                    <div className="chat-container">
+                      <div className="chat-header"><h3>💬 Energie-Taskforce</h3><div className="members">James, Dr. Bauer, WATT</div></div>
+                      <div className="chat-messages">{chatMessages.map(msg => (<div key={msg.id} className={`chat-message ${msg.type}`}>{msg.type === 'received' && <div className="sender"><span className="avatar">{msg.icon}</span><span>{msg.name}</span></div>}<div className="bubble">{msg.text}</div><div className="time">{msg.time}</div></div>))}<div ref={chatEndRef} /></div>
+                      <div className="chat-input"><input type="text" placeholder="Frage stellen..." value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyPress={e => e.key === 'Enter' && sendChat()} /><button onClick={sendChat}>➤</button></div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+          <button className="monat-beenden-btn" onClick={handleMonatBeendenClick}>
+            📅 Monat beenden →
+          </button>
+        </div>
+
+          {selectedBuilding && (
+            <div className="modal-overlay" onClick={() => setSelectedBuilding(null)}>
+              <div className="modal" onClick={e => e.stopPropagation()}>
+                <div className="modal-header"><span className="m-icon">{GEBAEUDE[selectedBuilding].icon}</span><div className="m-title"><h2>{GEBAEUDE[selectedBuilding].name}</h2><p>{GEBAEUDE[selectedBuilding].beschreibung}</p></div><button className="info-btn" onClick={() => setInfoPopup({ title: GEBAEUDE[selectedBuilding].name, icon: GEBAEUDE[selectedBuilding].icon, content: GEBAEUDE[selectedBuilding].info })}>?</button></div>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '10px' }}>Betriebsstufe wählen:</p>
+                <div className="massnahme-list">
+                  {MASSNAHMEN[selectedBuilding]?.map((m, i) => {
+                    const cur = gebaeudeStates[selectedBuilding] || 1;
+                    
+                    // Nutze zentrale Funktion für konsistente Berechnung
+                    const verbrauchMitStufe = Math.round(berechneGebaeudeVerbrauch(selectedBuilding, m.stufe));
+                    const verbrauchStufe1 = Math.round(berechneGebaeudeVerbrauch(selectedBuilding, 1));
+                    const ersparnis = verbrauchStufe1 - verbrauchMitStufe;
+                    
+                    return (
+                      <div key={i} className={`massnahme-item ${cur === m.stufe ? 'selected' : ''}`} onClick={() => setGebaeudeStates(p => ({ ...p, [selectedBuilding]: m.stufe }))}>
+                        <div className={`indicator ${m.color}`} />
+                        <div className="m-content"><div className="m-name">{m.name}</div><div className="m-desc">{m.desc}</div></div>
+                        <div className="m-effect">
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{formatKWh(verbrauchMitStufe)}</div>
+                          {ersparnis > 0 && <div className="m-saving">-{formatKWh(ersparnis)}</div>}
+                          {m.zufriedenheit < 0 && <div className="m-penalty">{m.zufriedenheit}%</div>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <button className="modal-close" onClick={() => setSelectedBuilding(null)}>Schliessen</button>
+              </div>
+            </div>
+          )}
+
+          {showConfirm && (
+            <div className="modal-overlay">
+              <div className="modal">
+                <h2 style={{ marginBottom: 12 }}>📅 {MONATE[monat]} beenden?</h2>
+                <div style={{ background: 'var(--bg-dark)', borderRadius: 8, padding: 12, marginBottom: 16 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <span>Bilanz:</span>
+                    <span style={{ color: bilanz >= 0 ? 'var(--positive)' : 'var(--negative)', fontWeight: 600 }}>{bilanz >= 0 ? '+' : ''}{formatKWh(bilanz)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <span>Speicher:</span>
+                    <span>{formatKWh(speicher)} / {formatKWh(maxSpeicher)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                    <span>Zufriedenheit:</span>
+                    {(() => {
+                      const zuSpeichern = bilanz >= 0 ? Math.min(Math.max(0, bilanz - verkaufMenge), maxSpeicher - speicher) : 0;
+                      const speicherBonusPreview = zuSpeichern > 0 ? Math.min(3, Math.floor(zuSpeichern / 10)) : 0;
+                      const verkaufBonusPreview = verkaufMenge > 0 ? Math.min(5, Math.floor(verkaufMenge / 10)) : 0;
+                      const totalBonus = speicherBonusPreview + verkaufBonusPreview;
+                      const newZuf = zufriedenheit + pendingZuf + totalBonus;
+                      return (
+                        <span>
+                          {zufriedenheit}% → <span style={{ color: (pendingZuf + totalBonus) >= 0 ? 'var(--positive)' : 'var(--warning)' }}>{newZuf}%</span>
+                          {totalBonus > 0 && (
+                            <span style={{ fontSize: '0.65rem', color: 'var(--positive)', marginLeft: 4 }}>
+                              ({speicherBonusPreview > 0 && `+${speicherBonusPreview}🔋`}{speicherBonusPreview > 0 && verkaufBonusPreview > 0 && ' '}{verkaufBonusPreview > 0 && `+${verkaufBonusPreview}💰`})
+                            </span>
+                          )}
+                        </span>
+                      );
+                    })()}
+                  </div>
+                </div>
+                
+                {bilanz >= 0 && (
+                  <>
+                    
+                    
+                    {(() => {
+                      const freiImSpeicher = maxSpeicher - speicher;
+                      const maxSpeichern = Math.min(bilanz, freiImSpeicher);
+                      const kannVerkaufen = bilanz > 0;
+                      const zuSpeichern = Math.max(0, bilanz - verkaufMenge);
+                      const potenziellerErtrag = verkaufMenge * 100;
+                      
+                      return (
+                        <div style={{ background: 'var(--bg-dark)', borderRadius: 8, padding: 12, marginBottom: 12 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                            <span>💰 Verkaufen:</span>
+                            <span style={{ color: 'var(--positive)', fontWeight: 600 }}>{formatKWh(verkaufMenge)} → +{formatCHF(potenziellerErtrag)}</span>
+                          </div>
+                          
+                          <input 
+                            type="range" 
+                            min="0" 
+                            max={bilanz} 
+                            step="1"
+                            value={verkaufMenge}
+                            onChange={(e) => setVerkaufMenge(parseInt(e.target.value))}
+                            style={{ width: '100%', marginBottom: 8 }}
+                          />
+                          
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                            <span>Nichts verkaufen</span>
+                            <span>Alles verkaufen</span>
+                          </div>
+                          
+                          <div style={{ marginTop: 12, padding: 8, background: 'rgba(0,180,166,0.1)', borderRadius: 6, fontSize: '0.8rem' }}>
+                            <div>🔋 In Speicher: {formatKWh(zuSpeichern)}</div>
+                            {zuSpeichern > freiImSpeicher && (
+                              <div style={{ color: 'var(--warning)', marginTop: 4 }}>⚠️ Speicher kann nur {formatKWh(freiImSpeicher)} aufnehmen – Rest geht verloren!</div>
+                            )}
+                          </div>
+                          
+                          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                            <button onClick={() => setVerkaufMenge(0)} style={{ flex: 1, padding: 6, background: 'var(--bg-card-hover)', border: 'none', borderRadius: 6, color: 'white', cursor: 'pointer', fontSize: '0.75rem' }}>Alles speichern</button>
+                            <button onClick={() => setVerkaufMenge(Math.max(0, bilanz - freiImSpeicher))} style={{ flex: 1, padding: 6, background: 'var(--bg-card-hover)', border: 'none', borderRadius: 6, color: 'white', cursor: 'pointer', fontSize: '0.75rem' }}>Optimal</button>
+                            <button onClick={() => setVerkaufMenge(bilanz)} style={{ flex: 1, padding: 6, background: 'var(--bg-card-hover)', border: 'none', borderRadius: 6, color: 'white', cursor: 'pointer', fontSize: '0.75rem' }}>Alles verkaufen</button>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </>
+                )}
+                
+                {bilanz < 0 && (
+                  <>
+                    
+                    <div className="defizit-options">
+                      <div className={`defizit-option ${defizitPlan === 'speicher' ? 'selected' : ''} ${speicher < Math.abs(bilanz) ? '' : ''}`} onClick={() => setDefizitPlan('speicher')}>
+                        <div className="d-icon">🔋</div>
+                        <div className="d-name">Speicher</div>
+                        <div className="d-cost">{speicher >= Math.abs(bilanz) ? 'Gratis' : `Nur ${formatKWh(speicher)}`}</div>
+                      </div>
+                      <div className={`defizit-option ${defizitPlan === 'import' ? 'selected' : ''}`} onClick={() => setDefizitPlan('import')}>
+                        <div className="d-icon">🔌</div>
+                        <div className="d-name">Import</div>
+                        <div className="d-cost">-{formatCHF(Math.abs(bilanz) * 150)}</div>
+                      </div>
+                      <div className={`defizit-option ${defizitPlan === 'kombi' ? 'selected' : ''}`} onClick={() => setDefizitPlan('kombi')}>
+                        <div className="d-icon">🔋+🔌</div>
+                        <div className="d-name">Kombi</div>
+                        <div className="d-cost">Erst Speicher</div>
+                      </div>
+                    </div>
+                  </>
+                )}
+                <div className="confirm-actions">
+                  <button className="confirm-btn secondary" onClick={() => setShowConfirm(false)}>← Zurück</button>
+                  <button className="confirm-btn primary" onClick={confirmEndMonth}>Bestätigen ✓</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showEvent && (
+            <div className="modal-overlay">
+              <div className="modal">
+                <div style={{ textAlign: 'center', marginBottom: 16 }}><div style={{ fontSize: 48 }}>{showEvent.icon}</div><div style={{ fontSize: '1.2rem', marginTop: 10 }}>{showEvent.name}</div><div style={{ color: 'var(--text-secondary)', marginTop: 4 }}>{showEvent.desc}</div></div>
+                {showEvent.choices.map((c, i) => (<div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 12, background: 'var(--bg-dark)', border: '2px solid var(--bg-card-hover)', borderRadius: 8, cursor: 'pointer', marginBottom: 8 }} onClick={() => handleEventChoice(c)}><span style={{ fontSize: 24 }}>{c.icon}</span><div style={{ flex: 1 }}><div style={{ fontWeight: 500 }}>{c.text}</div><div style={{ fontSize: '0.75rem', color: 'var(--warning)' }}>{c.desc}</div></div></div>))}
+              </div>
+            </div>
+          )}
+
+          {showSummary && summaryData && (
+            <div className="modal-overlay">
+              <div className="modal summary-modal">
+                <div className="summary-header"><div className="summary-month">{summaryData.monatName} ✓</div><div className="summary-subtitle">Monat {monat + 1} von 12</div></div>
+                <div className="summary-stats">
+                  <div className="summary-stat"><div className="s-icon">⚡</div><div className="s-value" style={{ color: 'var(--positive)' }}>+{formatKWh(summaryData.produktion)}</div><div className="s-label">Produktion</div></div>
+                  <div className="summary-stat"><div className="s-icon">🏘️</div><div className="s-value" style={{ color: 'var(--negative)' }}>-{formatKWh(summaryData.verbrauch)}</div><div className="s-label">Verbrauch</div></div>
+                  <div className="summary-stat"><div className="s-icon">📊</div><div className="s-value" style={{ color: summaryData.bilanz >= 0 ? 'var(--positive)' : 'var(--negative)' }}>{summaryData.bilanz >= 0 ? '+' : ''}{formatKWh(summaryData.bilanz)}</div><div className="s-label">Bilanz</div></div>
+                  <div className="summary-stat"><div className="s-icon">🔋</div><div className="s-value">{formatKWh(summaryData.speicherVorher)} → {formatKWh(summaryData.speicherNachher)}</div><div className="s-label">Speicher</div></div>
+                </div>
+                
+                {summaryData.gespeichert > 0 && (
+                  <div style={{ background: 'rgba(0,210,106,0.12)', padding: '8px 10px', borderRadius: 6, marginBottom: 8, fontSize: '0.8rem' }}>
+                    🔋 {formatKWh(summaryData.gespeichert)} in Speicher geladen
+                  </div>
+                )}
+                {summaryData.verkauft > 0 && (
+                  <div style={{ background: 'rgba(0,210,106,0.12)', padding: '8px 10px', borderRadius: 6, marginBottom: 8, fontSize: '0.8rem' }}>
+                    💰 {formatKWh(summaryData.verkauft)} verkauft → +{formatCHF(summaryData.verkaufErtrag)} (100 CHF/1'000 kWh)
+                  </div>
+                )}
+                {summaryData.ausSpeicher > 0 && (
+                  <div style={{ background: 'rgba(255,184,0,0.12)', padding: '8px 10px', borderRadius: 6, marginBottom: 8, fontSize: '0.8rem' }}>
+                    🔋 {formatKWh(summaryData.ausSpeicher)} aus Speicher genutzt
+                  </div>
+                )}
+                {summaryData.importMenge > 0 && (
+                  <div style={{ background: 'rgba(255,71,87,0.12)', padding: '8px 10px', borderRadius: 6, marginBottom: 8, fontSize: '0.8rem' }}>
+                    ⚠️ {formatKWh(summaryData.importMenge)} importiert → {summaryData.importKosten > 0 ? `−${formatCHF(summaryData.importKosten)} (150 CHF/1'000 kWh)` : 'GRATIS (Aktionskarte)'}
+                  </div>
+                )}
+                
+                <div style={{ background: 'var(--bg-dark)', padding: '8px 10px', borderRadius: 6, marginBottom: 10, fontSize: '0.8rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: (summaryData.speicherBonus > 0 || summaryData.verkaufBonus > 0) ? 4 : 0 }}>
+                    <span>😊 Zufriedenheit:</span>
+                    <span>{summaryData.zufBefore}% → <span style={{ color: summaryData.zufAfter >= summaryData.zufBefore ? 'var(--positive)' : 'var(--warning)' }}>{summaryData.zufAfter}%</span></span>
+                  </div>
+                  {(summaryData.speicherBonus > 0 || summaryData.verkaufBonus > 0) && (
+                    <div style={{ fontSize: '0.75rem', color: 'var(--positive)' }}>
+                      {summaryData.speicherBonus > 0 && <span>🔋 +{summaryData.speicherBonus}% (Speichern) </span>}
+                      {summaryData.verkaufBonus > 0 && <span>💰 +{summaryData.verkaufBonus}% (Verkauf)</span>}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="summary-message"><div className="sm-header"><span className="sm-avatar">👨‍🔧</span><span className="sm-name">James</span></div><div className="sm-text">{summaryData.verkauft > 0 ? 'Sehr gut! Überschuss verkauft – das bringt Geld!' : summaryData.bilanz >= 0 ? 'Super! Überschuss geht in den Speicher.' : summaryData.importMenge > 0 ? 'Knapp! Nächsten Monat mehr produzieren oder sparen.' : 'Gut gelöst mit dem Speicher!'}</div></div>
+                <button className="continue-btn" onClick={proceedToNextMonth}>{monat >= 11 ? 'Ergebnis' : 'Weiter →'}</button>
+              </div>
+            </div>
+          )}
+
+          {infoPopup && (
+            <>
+              <div className="info-popup-overlay" onClick={() => setInfoPopup(null)} />
+              <div className="info-popup">
+                <button className="info-popup-close" onClick={() => setInfoPopup(null)}>✕</button>
+                <div className="info-popup-header"><span>{infoPopup.icon}</span><h3>{infoPopup.title}</h3></div>
+                <div className="info-popup-content">{infoPopup.content}</div>
+                {infoPopup.action && (
+                  <button onClick={() => infoPopup.action()} style={{ width: '100%', marginTop: 12, padding: 10, background: 'linear-gradient(135deg, var(--wind-teal), var(--water-blue))', border: 'none', borderRadius: 8, color: 'white', fontWeight: 600, cursor: 'pointer' }}>
+                    {infoPopup.actionLabel || 'Bestätigen'}
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+
+          {showSpeicherVerkauf && (
+            <div className="modal-overlay" onClick={() => setShowSpeicherVerkauf(false)}>
+              <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 400 }}>
+                <h2 style={{ marginBottom: 12 }}>💰 Strom aus Speicher verkaufen</h2>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 16 }}>
+                  Verkaufe gespeicherten Strom an Nachbarstädte für <strong>100 CHF pro 1'000 kWh</strong>.
+                </p>
+                
+                <div style={{ background: 'var(--bg-dark)', borderRadius: 8, padding: 12, marginBottom: 16 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <span>Aktueller Speicher:</span>
+                    <span>{formatKWh(speicher)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
+                    <span>Verkaufen:</span>
+                    <span style={{ color: 'var(--positive)' }}>{formatKWh(speicherVerkaufMenge)} → +{formatCHF(speicherVerkaufMenge * 100)}</span>
+                  </div>
+                </div>
+                
+                <input 
+                  type="range" 
+                  min="0" 
+                  max={speicher} 
+                  step="1"
+                  value={speicherVerkaufMenge}
+                  onChange={(e) => setSpeicherVerkaufMenge(parseInt(e.target.value))}
+                  style={{ width: '100%', marginBottom: 8 }}
+                />
+                
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 12 }}>
+                  <span>0</span>
+                  <span>{formatKWh(speicher)}</span>
+                </div>
+                
+                <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+                  <button onClick={() => setSpeicherVerkaufMenge(Math.min(10, speicher))} style={{ flex: 1, padding: 8, background: 'var(--bg-card-hover)', border: 'none', borderRadius: 6, color: 'white', cursor: 'pointer', fontSize: '0.75rem' }}>10'000</button>
+                  <button onClick={() => setSpeicherVerkaufMenge(Math.min(25, speicher))} style={{ flex: 1, padding: 8, background: 'var(--bg-card-hover)', border: 'none', borderRadius: 6, color: 'white', cursor: 'pointer', fontSize: '0.75rem' }}>25'000</button>
+                  <button onClick={() => setSpeicherVerkaufMenge(Math.min(50, speicher))} style={{ flex: 1, padding: 8, background: 'var(--bg-card-hover)', border: 'none', borderRadius: 6, color: 'white', cursor: 'pointer', fontSize: '0.75rem' }}>50'000</button>
+                  <button onClick={() => setSpeicherVerkaufMenge(speicher)} style={{ flex: 1, padding: 8, background: 'var(--bg-card-hover)', border: 'none', borderRadius: 6, color: 'white', cursor: 'pointer', fontSize: '0.75rem' }}>Alles</button>
+                </div>
+                
+                <div style={{ background: 'rgba(255,184,0,0.12)', padding: 10, borderRadius: 6, marginBottom: 16, fontSize: '0.8rem' }}>
+                  ⚠️ Nach Verkauf: {formatKWh(speicher - speicherVerkaufMenge)} im Speicher
+                </div>
+                
+                <div className="confirm-actions">
+                  <button className="confirm-btn secondary" onClick={() => setShowSpeicherVerkauf(false)}>Abbrechen</button>
+                  <button className="confirm-btn primary" onClick={confirmSpeicherVerkauf} disabled={speicherVerkaufMenge <= 0}>Verkaufen ✓</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showAusbau && (
+            <div className="modal-overlay" onClick={() => setShowAusbau(false)}>
+              <div className="modal" onClick={e => e.stopPropagation()}>
+                <div className="modal-header">
+                  <span className="m-icon">🏗️</span>
+                  <div className="m-title">
+                    <h2>Investieren & Ausbauen</h2>
+                    <p>Budget: {formatCHF(budget)}</p>
+                  </div>
+                </div>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: 12 }}>
+                  Investiere in neue Anlagen um mehr Strom zu produzieren oder effizienter zu werden.
+                </p>
+                <div className="massnahme-list">
+                  {Object.entries(UPGRADES).filter(([id]) => !upgrades.includes(id)).length === 0 ? (
+                    <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 20 }}>✅ Alle Anlagen gebaut!</p>
+                  ) : Object.entries(UPGRADES).filter(([id]) => !upgrades.includes(id)).map(([id, up]) => {
+                    const canAfford = budget >= up.kosten;
+                    return (
+                      <div key={id} className={`massnahme-item ${!canAfford ? 'disabled' : ''}`} style={{ opacity: canAfford ? 1 : 0.5 }}>
+                        <span style={{ fontSize: 24 }}>{up.icon}</span>
+                        <div className="m-content">
+                          <div className="m-name">{up.name}</div>
+                          <div className="m-desc">{up.desc}</div>
+                        </div>
+                        <div className="m-effect">
+                          <div style={{ fontWeight: 600, color: canAfford ? 'var(--positive)' : 'var(--negative)' }}>{formatCHF(up.kosten)}</div>
+                          <button className="info-btn" onClick={(e) => { e.stopPropagation(); setInfoPopup({ title: up.name, icon: up.icon, content: up.info }); }}>?</button>
+                        </div>
+                        {canAfford && <button onClick={() => buyUpgrade(id)} style={{ padding: '6px 12px', background: 'var(--positive)', border: 'none', borderRadius: 6, color: 'white', fontWeight: 600, cursor: 'pointer', marginLeft: 8 }}>Bauen</button>}
+                      </div>
+                    );
+                  })}
+                </div>
+                {upgrades.length > 0 && (
+                  <div style={{ marginTop: 16, padding: 10, background: 'var(--bg-dark)', borderRadius: 8 }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 6 }}>Bereits gebaut:</div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {upgrades.map(id => <span key={id} onClick={() => setInfoPopup({ title: UPGRADES[id].name, icon: UPGRADES[id].icon, content: UPGRADES[id].info })} style={{ background: 'var(--bg-card-hover)', padding: '4px 8px', borderRadius: 6, fontSize: '0.75rem', cursor: 'pointer' }}>{UPGRADES[id].icon} {UPGRADES[id].name}</span>)}
+                    </div>
+                  </div>
+                )}
+                <button className="modal-close" onClick={() => setShowAusbau(false)}>← Zurück</button>
+              </div>
+            </div>
+          )}
+
+          
+        </div>
+      );
+    };
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<Game />);
+  </script>
+</body>
+</html>
