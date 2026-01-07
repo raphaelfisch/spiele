@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tectonic Rätsel Generator</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f0f0;
+            min-height: 100vh;
+            padding: 15px;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+            font-size: clamp(1.5rem, 5vw, 2rem);
+            font-weight: 600;
+        }
+
+        .controls {
+            background: white;
+            border-radius: 10px;
+            padding: 12px 15px;
+            margin-top: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .control-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            justify-content: center;
+        }
+
+        select, button {
+            padding: 10px 0;
+            font-size: 0.9rem;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 80px;
+            text-align: center;
+            text-align-last: center;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #666;
+        }
+
+        button {
+            background: #333;
+            color: white;
+            border: none;
+            font-weight: 500;
+        }
+
+        button:hover {
+            background: #555;
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: #4a9d4a;
+        }
+        
+        .btn-secondary:hover {
+            background: #3d8a3d;
+        }
+
+        .btn-warning {
+            background: #888;
+        }
+        
+        .btn-warning:hover {
+            background: #666;
+        }
+
+        .game-area {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        .grid-container {
+            display: flex;
+            justify-content: center;
+            padding: 8px;
+            overflow: visible;
+        }
+
+        .grid {
+            display: grid;
+            gap: 0;
+            background: white;
+            overflow: visible;
+            position: relative;
+            padding: 0;
+        }
+
+        .cell {
+            width: clamp(40px, 10vw, 60px);
+            height: clamp(40px, 10vw, 60px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(1.2rem, 4vw, 1.8rem);
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            user-select: none;
+            -webkit-user-select: none;
+            box-sizing: border-box;
+            overflow: visible;
+        }
+
+        /* Dünne graue Linien im Hintergrund */
+        .cell::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border-right: 1px solid #bbb;
+            border-bottom: 1px solid #bbb;
+            z-index: 1;
+            pointer-events: none;
+        }
+        
+        .cell.edge-right::before { border-right: none; }
+        .cell.edge-bottom::before { border-bottom: none; }
+
+        .cell:hover {
+            filter: brightness(0.95);
+        }
+
+        .cell.given {
+            color: #333;
+        }
+
+        .cell.user-input {
+            color: #0066cc;
+        }
+        
+        .cell.solution-new {
+            color: #cc0000;
+        }
+
+        .cell.error {
+            background-color: #ffcccc !important;
+            animation: shake 0.3s;
+        }
+
+        .cell.correct {
+            animation: pulse 0.3s;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        /* Dicke schwarze Bereichsgrenzen im Vordergrund */
+        .cell .border-line {
+            position: absolute;
+            background-color: #222;
+            z-index: 20;
+            pointer-events: none;
+        }
+
+        /* Innere Linien: mit Überlappung für saubere Ecken */
+        .cell .border-line.top {
+            top: -1px;
+            left: -2px;
+            right: -2px;
+            height: 3px;
+        }
+
+        .cell .border-line.bottom {
+            bottom: -1px;
+            left: -2px;
+            right: -2px;
+            height: 3px;
+        }
+
+        .cell .border-line.left {
+            top: -2px;
+            left: -1px;
+            bottom: -2px;
+            width: 3px;
+        }
+
+        .cell .border-line.right {
+            top: -2px;
+            right: -1px;
+            bottom: -2px;
+            width: 3px;
+        }
+        
+        /* Außenrand: 1px dicker um gleich wie innen auszusehen */
+        .cell .border-line.top.edge { top: 0; height: 4px; }
+        .cell .border-line.bottom.edge { bottom: 0; height: 4px; }
+        .cell .border-line.left.edge { left: 0; width: 4px; }
+        .cell .border-line.right.edge { right: 0; width: 4px; }
+        
+        /* Ecken am Außenrand: keine Überlappung nach außen */
+        .cell.edge-left .border-line.top,
+        .cell.edge-left .border-line.bottom { left: 0; }
+        
+        .cell.edge-right .border-line.top,
+        .cell.edge-right .border-line.bottom { right: 0; }
+        
+        .cell.edge-top .border-line.left,
+        .cell.edge-top .border-line.right { top: 0; }
+        
+        .cell.edge-bottom .border-line.left,
+        .cell.edge-bottom .border-line.right { bottom: 0; }
+
+        .number-pad {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+
+        .num-btn {
+            width: 40px;
+            height: 40px;
+            font-size: 1.2rem;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .num-btn.active {
+            box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.4);
+        }
+
+        .message {
+            text-align: center;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+            font-weight: 600;
+            display: none;
+            font-size: 0.9rem;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            display: block;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            display: block;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255,255,255,0.9);
+            padding: 15px 25px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            color: #666;
+            display: none;
+            z-index: 50;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .btn-info {
+            background: #666;
+        }
+        
+        .btn-info:hover {
+            background: #555;
+        }
+
+        /* Popup Styles */
+        .popup-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .popup-overlay.active {
+            display: flex;
+        }
+        
+        .popup {
+            background: white;
+            border-radius: 10px;
+            max-width: 400px;
+            margin: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        
+        .popup-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+            font-weight: 600;
+        }
+        
+        .popup-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: #666;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            line-height: 1;
+        }
+        
+        .popup-close:hover {
+            color: #333;
+            background: none;
+        }
+        
+        .popup-content {
+            padding: 15px;
+            color: #555;
+            line-height: 1.6;
+        }
+        
+        .popup-content p {
+            margin: 0 0 10px 0;
+        }
+        
+        .popup-content p:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Bereichsfarben - exakt wie im Beispiel */
+        .region-0 { background-color: #FFCDD2; } /* Rosa */
+        .region-1 { background-color: #C8E6C9; } /* Grün */
+        .region-2 { background-color: #FFF9C4; } /* Gelb */
+        .region-3 { background-color: #BBDEFB; } /* Blau */
+
+        @media (max-width: 500px) {
+            .controls {
+                padding: 10px;
+            }
+            .control-row {
+                gap: 5px;
+            }
+            select, button {
+                padding: 8px 0;
+                font-size: 0.8rem;
+                width: 65px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="game-area">
+            <div class="grid-container">
+                <div class="grid" id="grid"></div>
+            </div>
+            
+            <div class="loading" id="loading">Rätsel wird generiert...</div>
+            
+            <div class="number-pad" id="numberPad"></div>
+            
+            <div class="message" id="message"></div>
+        </div>
+
+        <div class="controls">
+            <div class="control-row">
+                <select id="sizeSelect" onchange="generatePuzzle()">
+                    <option value="4">4 × 4</option>
+                    <option value="5">5 × 5</option>
+                    <option value="6" selected>6 × 6</option>
+                    <option value="7">7 × 7</option>
+                </select>
+                <select id="difficultySelect" onchange="generatePuzzle()">
+                    <option value="easy">Einfach</option>
+                    <option value="medium" selected>Mittel</option>
+                    <option value="hard">Schwer</option>
+                </select>
+                <button onclick="generatePuzzle()">Neu</button>
+                <button class="btn-secondary" onclick="checkSolution()">Prüfen</button>
+                <button class="btn-warning" onclick="showSolution()">Lösung</button>
+                <button class="btn-info" onclick="toggleRules()">Regeln</button>
+            </div>
+        </div>
+        
+        <!-- Regeln Popup -->
+        <div class="popup-overlay" id="rulesOverlay" onclick="toggleRules()">
+            <div class="popup" onclick="event.stopPropagation()">
+                <div class="popup-header">
+                    <span>Spielregeln</span>
+                    <button class="popup-close" onclick="toggleRules()">×</button>
+                </div>
+                <div class="popup-content">
+                    <p><strong>Ziel:</strong> Fülle jeden Bereich mit den Zahlen 1 bis zur Größe des Bereichs.</p>
+                    <p>Ein 3er-Bereich enthält 1, 2, 3 – ein 5er-Bereich enthält 1, 2, 3, 4, 5.</p>
+                    <p><strong>Regel:</strong> Gleiche Zahlen dürfen sich nicht berühren – weder horizontal, vertikal noch diagonal.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let grid = [];
+        let regions = [];
+        let solution = [];
+        let regionColors = []; // Farbzuweisung für jeden Bereich
+        let regionSizeCache = {}; // Cache für Bereichsgrößen
+        let regionCellsCache = {}; // Cache für Bereichszellen
+        let selectedCell = null;
+        let gridSize = 6;
+        let maxNumber = 5;
+
+        // Initialisierung
+        document.addEventListener('DOMContentLoaded', () => {
+            generatePuzzle();
+        });
+
+        let loadingStartTime = 0;
+        const MIN_LOADING_TIME = 400; // Mindestens 400ms anzeigen
+        
+        function generatePuzzle() {
+            // Lade-Indikator anzeigen (über bestehendem Grid)
+            document.getElementById('loading').classList.add('active');
+            loadingStartTime = Date.now();
+            
+            // Kurze Verzögerung damit der Browser die UI aktualisieren kann
+            setTimeout(() => {
+                doGeneratePuzzle(0);
+            }, 10);
+        }
+        
+        function hideLoadingWithDelay(callback) {
+            const elapsed = Date.now() - loadingStartTime;
+            const remaining = MIN_LOADING_TIME - elapsed;
+            
+            if (remaining > 0) {
+                setTimeout(() => {
+                    document.getElementById('loading').classList.remove('active');
+                    if (callback) callback();
+                }, remaining);
+            } else {
+                document.getElementById('loading').classList.remove('active');
+                if (callback) callback();
+            }
+        }
+        
+        function doGeneratePuzzle(totalAttempts) {
+            gridSize = parseInt(document.getElementById('sizeSelect').value);
+            const difficulty = document.getElementById('difficultySelect').value;
+            
+            // Reset
+            selectedCell = null;
+            document.getElementById('message').className = 'message';
+            document.getElementById('message').textContent = '';
+
+            let attempts = 0;
+            const maxAttempts = 10;
+            
+            while (attempts < maxAttempts) {
+                attempts++;
+                totalAttempts++;
+                
+                // Bereiche generieren
+                grid = [];
+                regions = [];
+                solution = [];
+                regionSizeCache = {};
+                regionCellsCache = {};
+                generateRegions();
+                
+                // Farben für Bereiche zuweisen
+                assignRegionColors();
+                
+                // Maximale Zahl bestimmen
+                maxNumber = getMaxRegionSize();
+
+                // Lösung generieren
+                if (generateSolution()) {
+                    // Erfolg!
+                    createPuzzleFromSolution(difficulty);
+                    hideLoadingWithDelay(() => {
+                        renderGrid();
+                        renderNumberPad();
+                    });
+                    return;
+                }
+            }
+            
+            // Noch nicht gefunden - asynchron weitermachen
+            if (totalAttempts < 100) {
+                setTimeout(() => doGeneratePuzzle(totalAttempts), 0);
+            } else {
+                // Nochmal von vorne
+                setTimeout(() => doGeneratePuzzle(0), 0);
+            }
+        }
+
+        function generateRegions() {
+            // Initialisiere leeres Regionen-Array
+            regions = Array(gridSize).fill(null).map(() => Array(gridSize).fill(-1));
+            
+            let regionId = 0;
+            const cells = [];
+            
+            // Alle Zellen sammeln
+            for (let r = 0; r < gridSize; r++) {
+                for (let c = 0; c < gridSize; c++) {
+                    cells.push({r, c});
+                }
+            }
+            
+            // Zellen mischen
+            shuffleArray(cells);
+            
+            // Bereiche erstellen (max. Größe 5)
+            for (const cell of cells) {
+                if (regions[cell.r][cell.c] === -1) {
+                    const regionSize = Math.floor(Math.random() * 4) + 2; // 2-5 Zellen
+                    growRegion(cell.r, cell.c, regionId, Math.min(regionSize, 5));
+                    regionId++;
+                }
+            }
+            
+            // Einzelne Zellen zu Nachbarn hinzufügen
+            for (let r = 0; r < gridSize; r++) {
+                for (let c = 0; c < gridSize; c++) {
+                    if (getRegionSizeUncached(regions[r][c]) === 1) {
+                        // Finde benachbarten Bereich mit Größe < 5 und füge hinzu
+                        const neighbors = getOrthogonalNeighbors(r, c);
+                        shuffleArray(neighbors);
+                        for (const neighbor of neighbors) {
+                            if (getRegionSizeUncached(regions[neighbor.r][neighbor.c]) < 5) {
+                                regions[r][c] = regions[neighbor.r][neighbor.c];
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        function getRegionSizeUncached(regionId) {
+            let count = 0;
+            for (let r = 0; r < gridSize; r++) {
+                for (let c = 0; c < gridSize; c++) {
+                    if (regions[r][c] === regionId) count++;
+                }
+            }
+            return count;
+        }
+
+        function growRegion(startR, startC, regionId, targetSize) {
+            const queue = [{r: startR, c: startC}];
+            regions[startR][startC] = regionId;
+            let size = 1;
+            
+            while (queue.length > 0 && size < targetSize) {
+                const current = queue[Math.floor(Math.random() * queue.length)];
+                const neighbors = getOrthogonalNeighbors(current.r, current.c)
+                    .filter(n => regions[n.r][n.c] === -1);
+                
+                if (neighbors.length > 0) {
+                    const next = neighbors[Math.floor(Math.random() * neighbors.length)];
+                    regions[next.r][next.c] = regionId;
+                    queue.push(next);
+                    size++;
+                } else {
+                    queue.splice(queue.indexOf(current), 1);
+                }
+            }
+        }
+
+        function getOrthogonalNeighbors(r, c) {
+            const neighbors = [];
+            const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+            for (const [dr, dc] of dirs) {
+                const nr = r + dr;
+                const nc = c + dc;
+                if (nr >= 0 && nr < gridSize && nc >= 0 && nc < gridSize) {
+                    neighbors.push({r: nr, c: nc});
+                }
+            }
+            return neighbors;
+        }
+
+        function getAllNeighbors(r, c) {
+            const neighbors = [];
+            for (let dr = -1; dr <= 1; dr++) {
+                for (let dc = -1; dc <= 1; dc++) {
+                    if (dr === 0 && dc === 0) continue;
+                    const nr = r + dr;
+                    const nc = c + dc;
+                    if (nr >= 0 && nr < gridSize && nc >= 0 && nc < gridSize) {
+                        neighbors.push({r: nr, c: nc});
+                    }
+                }
+            }
+            return neighbors;
+        }
+
+        function getRegionSize(regionId) {
+            if (regionSizeCache[regionId] !== undefined) {
+                return regionSizeCache[regionId];
+            }
+            let count = 0;
+            for (let r = 0; r < gridSize; r++) {
+                for (let c = 0; c < gridSize; c++) {
+                    if (regions[r][c] === regionId) count++;
+                }
+            }
+            regionSizeCache[regionId] = count;
+            return count;
+        }
+
+        function getMaxRegionSize() {
+            const regionSizes = {};
+            for (let r = 0; r < gridSize; r++) {
+                for (let c = 0; c < gridSize; c++) {
+                    const id = regions[r][c];
+                    regionSizes[id] = (regionSizes[id] || 0) + 1;
+                }
+            }
+            return Math.max(...Object.values(regionSizes));
+        }
+
+        function getRegionCells(regionId) {
+            if (regionCellsCache[regionId] !== undefined) {
+                return regionCellsCache[regionId];
+            }
+            const cells = [];
+            for (let r = 0; r < gridSize; r++) {
+                for (let c = 0; c < gridSize; c++) {
+                    if (regions[r][c] === regionId) {
+                        cells.push({r, c});
+                    }
+                }
+            }
+            regionCellsCache[regionId] = cells;
+            return cells;
+        }
+
+        function generateSolution() {
+            solution = Array(gridSize).fill(null).map(() => Array(gridSize).fill(0));
+            solverIterations = 0;
+            return solvePuzzleOptimized();
+        }
+
+        let solverIterations = 0;
+        const MAX_ITERATIONS = 50000;
+
+        function solvePuzzleOptimized() {
+            solverIterations++;
+            if (solverIterations > MAX_ITERATIONS) {
+                return false; // Abbruch - zu lange
+            }
+            
+            // Finde Zelle mit wenigsten Möglichkeiten (MRV Heuristik)
+            let minOptions = Infinity;
+            let bestCell = null;
+            
+            for (let r = 0; r < gridSize; r++) {
+                for (let c = 0; c < gridSize; c++) {
+                    if (solution[r][c] === 0) {
+                        const options = getValidNumbers(r, c);
+                        if (options.length === 0) return false; // Keine Lösung möglich
+                        if (options.length < minOptions) {
+                            minOptions = options.length;
+                            bestCell = {r, c, options};
+                        }
+                    }
+                }
+            }
+            
+            // Alle Zellen gefüllt = fertig
+            if (!bestCell) return true;
+            
+            // Versuche alle Optionen für diese Zelle
+            shuffleArray(bestCell.options);
+            for (const num of bestCell.options) {
+                solution[bestCell.r][bestCell.c] = num;
+                if (solvePuzzleOptimized()) return true;
+                solution[bestCell.r][bestCell.c] = 0;
+            }
+            
+            return false;
+        }
+
+        function getValidNumbers(row, col) {
+            const regionId = regions[row][col];
+            const regionSize = getRegionSize(regionId);
+            const valid = [];
+            
+            for (let num = 1; num <= regionSize; num++) {
+                if (isValidPlacement(solution, row, col, num)) {
+                    valid.push(num);
+                }
+            }
+            return valid;
+        }
+
+        function solvePuzzle(board, row, col) {
+            // Nicht mehr verwendet, aber für Kompatibilität behalten
+            return solvePuzzleOptimized();
+        }
+
+        function isValidPlacement(board, row, col, num) {
+            // Prüfe alle 8 Nachbarn
+            const neighbors = getAllNeighbors(row, col);
+            for (const n of neighbors) {
+                if (board[n.r][n.c] === num) return false;
+            }
+            
+            // Prüfe ob Zahl bereits im Bereich ist
+            const regionId = regions[row][col];
+            const regionCells = getRegionCells(regionId);
+            for (const cell of regionCells) {
+                if (cell.r === row && cell.c === col) continue;
+                if (board[cell.r][cell.c] === num) return false;
+            }
+            
+            return true;
+        }
+
+        function createPuzzleFromSolution(difficulty) {
+            // Kopiere Lösung
+            grid = solution.map(row => [...row]);
+            
+            // Bestimme wie viele Zellen entfernt werden
+            const totalCells = gridSize * gridSize;
+            let removeCount;
+            
+            switch (difficulty) {
+                case 'easy':
+                    removeCount = Math.floor(totalCells * 0.4);
+                    break;
+                case 'medium':
+                    removeCount = Math.floor(totalCells * 0.55);
+                    break;
+                case 'hard':
+                    removeCount = Math.floor(totalCells * 0.7);
+                    break;
+            }
+            
+            // Zufällige Zellen zum Entfernen auswählen
+            const cells = [];
+            for (let r = 0; r < gridSize; r++) {
+                for (let c = 0; c < gridSize; c++) {
+                    cells.push({r, c});
+                }
+            }
+            shuffleArray(cells);
+            
+            let removed = 0;
+            for (const cell of cells) {
+                if (removed >= removeCount) break;
+                grid[cell.r][cell.c] = 0;
+                removed++;
+            }
+        }
+
+        function renderGrid() {
+            const gridEl = document.getElementById('grid');
+            gridEl.innerHTML = '';
+            gridEl.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
+            
+            for (let r = 0; r < gridSize; r++) {
+                for (let c = 0; c < gridSize; c++) {
+                    const cell = document.createElement('div');
+                    const colorIndex = regionColors[regions[r][c]] || 0;
+                    cell.className = `cell region-${colorIndex}`;
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+                    
+                    // Edge-Klassen für äußere Zellen
+                    const isTop = r === 0;
+                    const isBottom = r === gridSize - 1;
+                    const isLeft = c === 0;
+                    const isRight = c === gridSize - 1;
+                    
+                    if (isTop) cell.classList.add('edge-top');
+                    if (isBottom) cell.classList.add('edge-bottom');
+                    if (isLeft) cell.classList.add('edge-left');
+                    if (isRight) cell.classList.add('edge-right');
+                    
+                    // Oben: Außenrand ODER innere Bereichsgrenze
+                    if (isTop || regions[r-1][c] !== regions[r][c]) {
+                        const line = document.createElement('div');
+                        line.className = 'border-line top' + (isTop ? ' edge' : '');
+                        cell.appendChild(line);
+                    }
+                    // Unten: Außenrand ODER innere Bereichsgrenze
+                    if (isBottom || regions[r+1][c] !== regions[r][c]) {
+                        const line = document.createElement('div');
+                        line.className = 'border-line bottom' + (isBottom ? ' edge' : '');
+                        cell.appendChild(line);
+                    }
+                    // Links: Außenrand ODER innere Bereichsgrenze
+                    if (isLeft || regions[r][c-1] !== regions[r][c]) {
+                        const line = document.createElement('div');
+                        line.className = 'border-line left' + (isLeft ? ' edge' : '');
+                        cell.appendChild(line);
+                    }
+                    // Rechts: Außenrand ODER innere Bereichsgrenze
+                    if (isRight || regions[r][c+1] !== regions[r][c]) {
+                        const line = document.createElement('div');
+                        line.className = 'border-line right' + (isRight ? ' edge' : '');
+                        cell.appendChild(line);
+                    }
+                    
+                    // Zahl als separates Span-Element
+                    const numSpan = document.createElement('span');
+                    numSpan.style.position = 'relative';
+                    numSpan.style.zIndex = '5';
+                    
+                    const value = grid[r][c];
+                    if (value !== 0) {
+                        numSpan.textContent = value;
+                        if (solution[r][c] === value && grid[r][c] === solution[r][c]) {
+                            cell.classList.add('given');
+                        }
+                    }
+                    cell.appendChild(numSpan);
+                    
+                    cell.addEventListener('click', () => selectCell(r, c));
+                    gridEl.appendChild(cell);
+                }
+            }
+        }
+
+        function renderNumberPad() {
+            const pad = document.getElementById('numberPad');
+            pad.innerHTML = '';
+            
+            const maxNum = getMaxRegionSize();
+            
+            for (let n = 1; n <= maxNum; n++) {
+                const btn = document.createElement('button');
+                btn.className = 'num-btn';
+                btn.textContent = n;
+                btn.addEventListener('click', () => enterNumber(n));
+                pad.appendChild(btn);
+            }
+            
+            // Löschen-Button
+            const clearBtn = document.createElement('button');
+            clearBtn.className = 'num-btn btn-warning';
+            clearBtn.textContent = '✕';
+            clearBtn.addEventListener('click', () => enterNumber(0));
+            pad.appendChild(clearBtn);
+        }
+
+        function selectCell(r, c) {
+            // Entferne alte Auswahl
+            document.querySelectorAll('.cell').forEach(cell => {
+                cell.style.boxShadow = '';
+            });
+            
+            selectedCell = {r, c};
+            
+            // Markiere ausgewählte Zelle
+            const cells = document.querySelectorAll('.cell');
+            const index = r * gridSize + c;
+            cells[index].style.boxShadow = 'inset 0 0 0 3px #667eea';
+        }
+
+        function enterNumber(num) {
+            if (!selectedCell) return;
+            
+            const {r, c} = selectedCell;
+            
+            // Prüfe ob es eine gegebene Zahl ist
+            if (solution[r][c] === grid[r][c] && grid[r][c] !== 0) {
+                // Ursprünglich gegebene Zahl - nicht änderbar
+                return;
+            }
+            
+            // Prüfe ob Zahl für diesen Bereich gültig ist
+            const regionSize = getRegionSize(regions[r][c]);
+            if (num > regionSize) {
+                showTemporaryError(r, c);
+                return;
+            }
+            
+            grid[r][c] = num;
+            
+            // Aktualisiere Anzeige
+            const cells = document.querySelectorAll('.cell');
+            const index = r * gridSize + c;
+            const cell = cells[index];
+            const numSpan = cell.querySelector('span');
+            
+            numSpan.textContent = num === 0 ? '' : num;
+            cell.classList.remove('given', 'error');
+            if (num !== 0) {
+                cell.classList.add('user-input');
+            }
+            
+            // Verstecke Nachricht
+            document.getElementById('message').className = 'message';
+        }
+
+        function showTemporaryError(r, c) {
+            const cells = document.querySelectorAll('.cell');
+            const index = r * gridSize + c;
+            const cell = cells[index];
+            cell.classList.add('error');
+            setTimeout(() => cell.classList.remove('error'), 300);
+        }
+
+        function checkSolution() {
+            let correct = true;
+            const cells = document.querySelectorAll('.cell');
+            
+            for (let r = 0; r < gridSize; r++) {
+                for (let c = 0; c < gridSize; c++) {
+                    const index = r * gridSize + c;
+                    const cell = cells[index];
+                    
+                    if (grid[r][c] === 0) {
+                        correct = false;
+                        cell.classList.add('error');
+                    } else if (grid[r][c] !== solution[r][c]) {
+                        correct = false;
+                        cell.classList.add('error');
+                    } else {
+                        cell.classList.remove('error');
+                        cell.classList.add('correct');
+                    }
+                }
+            }
+            
+            const message = document.getElementById('message');
+            if (correct) {
+                message.className = 'message success';
+                message.textContent = 'Fantastisch! Das Rätsel ist korrekt gelöst!';
+            } else {
+                message.className = 'message error';
+                message.textContent = 'Es gibt noch Fehler. Die rot markierten Felder stimmen nicht.';
+            }
+            
+            // Fehlermarkierungen nach kurzer Zeit entfernen
+            setTimeout(() => {
+                cells.forEach(cell => {
+                    cell.classList.remove('error', 'correct');
+                });
+            }, 2000);
+        }
+
+        function showSolution() {
+            if (!confirm('Möchtest du wirklich die Lösung sehen?')) return;
+            
+            // Merke welche Felder bereits ausgefüllt waren
+            const wasFilledBefore = grid.map(row => row.map(cell => cell !== 0));
+            
+            grid = solution.map(row => [...row]);
+            renderGrid();
+            
+            // Neue Zahlen rot markieren
+            const cells = document.querySelectorAll('.cell');
+            for (let r = 0; r < gridSize; r++) {
+                for (let c = 0; c < gridSize; c++) {
+                    const index = r * gridSize + c;
+                    if (!wasFilledBefore[r][c]) {
+                        cells[index].classList.add('solution-new');
+                    }
+                }
+            }
+        }
+
+        function updateDifficultyInfo() {
+            // Nicht mehr angezeigt
+        }
+
+        function getUniqueRegionCount() {
+            const unique = new Set();
+            for (let r = 0; r < gridSize; r++) {
+                for (let c = 0; c < gridSize; c++) {
+                    unique.add(regions[r][c]);
+                }
+            }
+            return unique.size;
+        }
+
+        function assignRegionColors() {
+            // Finde alle einzigartigen Regionen
+            const uniqueRegions = new Set();
+            for (let r = 0; r < gridSize; r++) {
+                for (let c = 0; c < gridSize; c++) {
+                    uniqueRegions.add(regions[r][c]);
+                }
+            }
+            
+            // Baue Nachbarschaftsgraph
+            const neighbors = {};
+            for (const id of uniqueRegions) {
+                neighbors[id] = new Set();
+            }
+            
+            for (let r = 0; r < gridSize; r++) {
+                for (let c = 0; c < gridSize; c++) {
+                    const currentRegion = regions[r][c];
+                    // Prüfe alle 4 Nachbarn
+                    const dirs = [[0, 1], [1, 0], [0, -1], [-1, 0]];
+                    for (const [dr, dc] of dirs) {
+                        const nr = r + dr;
+                        const nc = c + dc;
+                        if (nr >= 0 && nr < gridSize && nc >= 0 && nc < gridSize) {
+                            const neighborRegion = regions[nr][nc];
+                            if (neighborRegion !== currentRegion) {
+                                neighbors[currentRegion].add(neighborRegion);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Graph-Coloring mit 4 Farben
+            regionColors = {};
+            const sortedRegions = [...uniqueRegions].sort((a, b) => 
+                neighbors[b].size - neighbors[a].size
+            );
+            
+            for (const regionId of sortedRegions) {
+                const usedColors = new Set();
+                for (const neighborId of neighbors[regionId]) {
+                    if (regionColors[neighborId] !== undefined) {
+                        usedColors.add(regionColors[neighborId]);
+                    }
+                }
+                
+                // Finde erste freie Farbe
+                for (let color = 0; color < 4; color++) {
+                    if (!usedColors.has(color)) {
+                        regionColors[regionId] = color;
+                        break;
+                    }
+                }
+            }
+        }
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+        
+        function toggleRules() {
+            const overlay = document.getElementById('rulesOverlay');
+            overlay.classList.toggle('active');
+        }
+    </script>
+</body>
+</html>
