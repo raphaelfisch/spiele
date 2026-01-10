@@ -171,23 +171,12 @@
 
         .cell.error {
             background-color: #ffcccc !important;
-            animation: shake 0.3s;
         }
 
         .cell.correct {
-            animation: pulse 0.3s;
+            background-color: #ccffcc !important;
         }
 
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-5px); }
-            75% { transform: translateX(5px); }
-        }
-
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-        }
 
         /* Dicke schwarze Bereichsgrenzen im Vordergrund */
         .cell .border-line {
@@ -456,6 +445,7 @@
         let grid = [];
         let regions = [];
         let solution = [];
+        let givenCells = []; // Speichert welche Zellen ursprünglich vorgegeben waren
         let regionColors = []; // Farbzuweisung für jeden Bereich
         let regionSizeCache = {}; // Cache für Bereichsgrößen
         let regionCellsCache = {}; // Cache für Bereichszellen
@@ -778,23 +768,7 @@
             // Kopiere Lösung
             grid = solution.map(row => [...row]);
             
-            // Bestimme wie viele Zellen entfernt werden
-            const totalCells = gridSize * gridSize;
-            let removeCount;
-            
-            switch (difficulty) {
-                case 'easy':
-                    removeCount = Math.floor(totalCells * 0.4);
-                    break;
-                case 'medium':
-                    removeCount = Math.floor(totalCells * 0.55);
-                    break;
-                case 'hard':
-                    removeCount = Math.floor(totalCells * 0.7);
-                    break;
-            }
-            
-            // Zufällige Zellen zum Entfernen auswählen
+            // Alle Zellen sammeln und mischen
             const cells = [];
             for (let r = 0; r < gridSize; r++) {
                 for (let c = 0; c < gridSize; c++) {
@@ -803,12 +777,186 @@
             }
             shuffleArray(cells);
             
+            // Zielanzahl zu entfernender Zellen je nach Schwierigkeit
+            const totalCells = gridSize * gridSize;
+            let targetRemove;
+            switch (difficulty) {
+                case 'easy':
+                    targetRemove = Math.floor(totalCells * 0.45);
+                    break;
+                case 'medium':
+                    targetRemove = Math.floor(totalCells * 0.55);
+                    break;
+                case 'hard':
+                    targetRemove = Math.floor(totalCells * 0.65);
+                    break;
+            }
+            
+            // Versuche Zellen zu entfernen, solange Rätsel eindeutig lösbar bleibt
             let removed = 0;
             for (const cell of cells) {
-                if (removed >= removeCount) break;
-                grid[cell.r][cell.c] = 0;
-                removed++;
+                if (removed >= targetRemove) break;
+                
+                const {r, c} = cell;
+                const backup = grid[r][c];
+                grid[r][c] = 0;
+                
+                // Prüfe ob noch eindeutig lösbar
+                if (isUniquelySolvable()) {
+                    removed++;
+                } else {
+                    // Nicht eindeutig lösbar - Zahl zurück
+                    grid[r][c] = backup;
+                }
             }
+            
+            // Speichere welche Zellen vorgegeben sind
+            givenCells = grid.map(row => row.map(cell => cell !== 0));
+        }
+        
+        // Prüft ob das aktuelle Grid eindeutig mit Logik lösbar ist
+        function isUniquelySolvable() {
+            // Kopie des Grids zum Testen
+            const testGrid = grid.map(row => [...row]);
+            
+            // Kandidaten für jede Zelle berechnen
+            const candidates = [];
+            for (let r = 0; r < gridSize; r++) {
+                candidates[r] = [];
+                for (let c = 0; c < gridSize; c++) {
+                    if (testGrid[r][c] !== 0) {
+                        candidates[r][c] = new Set();
+                    } else {
+                        candidates[r][c] = getCandidates(testGrid, r, c);
+                    }
+                }
+            }
+            
+            // Logisch lösen
+            let changed = true;
+            while (changed) {
+                changed = false;
+                
+                // Technik 1: Naked Singles (nur eine Möglichkeit in Zelle)
+                for (let r = 0; r < gridSize; r++) {
+                    for (let c = 0; c < gridSize; c++) {
+                        if (testGrid[r][c] === 0 && candidates[r][c].size === 1) {
+                            const value = [...candidates[r][c]][0];
+                            testGrid[r][c] = value;
+                            candidates[r][c] = new Set();
+                            updateCandidates(candidates, testGrid, r, c, value);
+                            changed = true;
+                        } else if (testGrid[r][c] === 0 && candidates[r][c].size === 0) {
+                            return false; // Keine Lösung möglich
+                        }
+                    }
+                }
+                
+                // Technik 2: Hidden Singles (Zahl nur an einer Stelle im Bereich möglich)
+                const regionIds = new Set();
+                for (let r = 0; r < gridSize; r++) {
+                    for (let c = 0; c < gridSize; c++) {
+                        regionIds.add(regions[r][c]);
+                    }
+                }
+                
+                for (const regionId of regionIds) {
+                    const regionCells = getRegionCells(regionId);
+                    const regionSize = regionCells.length;
+                    
+                    for (let num = 1; num <= regionSize; num++) {
+                        // Finde alle Zellen wo diese Zahl möglich ist
+                        const possibleCells = regionCells.filter(({r, c}) => 
+                            testGrid[r][c] === 0 && candidates[r][c].has(num)
+                        );
+                        
+                        if (possibleCells.length === 1) {
+                            const {r, c} = possibleCells[0];
+                            testGrid[r][c] = num;
+                            candidates[r][c] = new Set();
+                            updateCandidates(candidates, testGrid, r, c, num);
+                            changed = true;
+                        } else if (possibleCells.length === 0) {
+                            // Prüfe ob Zahl schon im Bereich ist
+                            const hasNum = regionCells.some(({r, c}) => testGrid[r][c] === num);
+                            if (!hasNum) return false; // Keine Lösung möglich
+                        }
+                    }
+                }
+            }
+            
+            // Prüfe ob komplett gelöst
+            for (let r = 0; r < gridSize; r++) {
+                for (let c = 0; c < gridSize; c++) {
+                    if (testGrid[r][c] === 0) {
+                        return false; // Nicht vollständig lösbar mit Logik
+                    }
+                }
+            }
+            
+            return true;
+        }
+        
+        // Berechnet mögliche Kandidaten für eine Zelle
+        function getCandidates(testGrid, row, col) {
+            const regionId = regions[row][col];
+            const regionSize = getRegionSize(regionId);
+            const candidates = new Set();
+            
+            for (let num = 1; num <= regionSize; num++) {
+                if (isValidPlacementInGrid(testGrid, row, col, num)) {
+                    candidates.add(num);
+                }
+            }
+            
+            return candidates;
+        }
+        
+        // Aktualisiert Kandidaten nach Platzierung einer Zahl
+        function updateCandidates(candidates, testGrid, row, col, value) {
+            // Entferne aus allen Nachbarn
+            for (let dr = -1; dr <= 1; dr++) {
+                for (let dc = -1; dc <= 1; dc++) {
+                    if (dr === 0 && dc === 0) continue;
+                    const nr = row + dr;
+                    const nc = col + dc;
+                    if (nr >= 0 && nr < gridSize && nc >= 0 && nc < gridSize) {
+                        candidates[nr][nc].delete(value);
+                    }
+                }
+            }
+            
+            // Entferne aus allen Zellen im gleichen Bereich
+            const regionId = regions[row][col];
+            const regionCells = getRegionCells(regionId);
+            for (const {r, c} of regionCells) {
+                candidates[r][c].delete(value);
+            }
+        }
+        
+        // Prüft ob Platzierung gültig ist (für beliebiges Grid)
+        function isValidPlacementInGrid(testGrid, row, col, num) {
+            // Prüfe alle 8 Nachbarn
+            for (let dr = -1; dr <= 1; dr++) {
+                for (let dc = -1; dc <= 1; dc++) {
+                    if (dr === 0 && dc === 0) continue;
+                    const nr = row + dr;
+                    const nc = col + dc;
+                    if (nr >= 0 && nr < gridSize && nc >= 0 && nc < gridSize) {
+                        if (testGrid[nr][nc] === num) return false;
+                    }
+                }
+            }
+            
+            // Prüfe ob Zahl bereits im Bereich ist
+            const regionId = regions[row][col];
+            const regionCells = getRegionCells(regionId);
+            for (const {r, c} of regionCells) {
+                if (r === row && c === col) continue;
+                if (testGrid[r][c] === num) return false;
+            }
+            
+            return true;
         }
 
         function renderGrid() {
@@ -868,8 +1016,10 @@
                     const value = grid[r][c];
                     if (value !== 0) {
                         numSpan.textContent = value;
-                        if (solution[r][c] === value && grid[r][c] === solution[r][c]) {
+                        if (givenCells[r] && givenCells[r][c]) {
                             cell.classList.add('given');
+                        } else {
+                            cell.classList.add('user-input');
                         }
                     }
                     cell.appendChild(numSpan);
@@ -903,6 +1053,12 @@
         }
 
         function selectCell(r, c) {
+            // Prüfmodus-Markierungen entfernen
+            document.querySelectorAll('.cell').forEach(cell => {
+                cell.classList.remove('error', 'correct');
+            });
+            document.getElementById('message').className = 'message';
+            
             // Entferne alte Auswahl
             document.querySelectorAll('.cell').forEach(cell => {
                 cell.style.boxShadow = '';
@@ -921,16 +1077,9 @@
             
             const {r, c} = selectedCell;
             
-            // Prüfe ob es eine gegebene Zahl ist
-            if (solution[r][c] === grid[r][c] && grid[r][c] !== 0) {
+            // Prüfe ob es eine ursprünglich vorgegebene Zahl ist
+            if (givenCells[r] && givenCells[r][c]) {
                 // Ursprünglich gegebene Zahl - nicht änderbar
-                return;
-            }
-            
-            // Prüfe ob Zahl für diesen Bereich gültig ist
-            const regionSize = getRegionSize(regions[r][c]);
-            if (num > regionSize) {
-                showTemporaryError(r, c);
                 return;
             }
             
@@ -943,21 +1092,13 @@
             const numSpan = cell.querySelector('span');
             
             numSpan.textContent = num === 0 ? '' : num;
-            cell.classList.remove('given', 'error');
+            cell.classList.remove('given', 'error', 'user-input', 'correct');
             if (num !== 0) {
                 cell.classList.add('user-input');
             }
             
             // Verstecke Nachricht
             document.getElementById('message').className = 'message';
-        }
-
-        function showTemporaryError(r, c) {
-            const cells = document.querySelectorAll('.cell');
-            const index = r * gridSize + c;
-            const cell = cells[index];
-            cell.classList.add('error');
-            setTimeout(() => cell.classList.remove('error'), 300);
         }
 
         function checkSolution() {
@@ -969,6 +1110,9 @@
                     const index = r * gridSize + c;
                     const cell = cells[index];
                     
+                    // Erst alle Markierungen entfernen
+                    cell.classList.remove('error', 'correct');
+                    
                     if (grid[r][c] === 0) {
                         correct = false;
                         cell.classList.add('error');
@@ -976,7 +1120,6 @@
                         correct = false;
                         cell.classList.add('error');
                     } else {
-                        cell.classList.remove('error');
                         cell.classList.add('correct');
                     }
                 }
@@ -991,29 +1134,22 @@
                 message.textContent = 'Es gibt noch Fehler. Die rot markierten Felder stimmen nicht.';
             }
             
-            // Fehlermarkierungen nach kurzer Zeit entfernen
-            setTimeout(() => {
-                cells.forEach(cell => {
-                    cell.classList.remove('error', 'correct');
-                });
-            }, 2000);
+            // Markierungen bleiben bis Benutzer etwas ändert
         }
 
         function showSolution() {
             if (!confirm('Möchtest du wirklich die Lösung sehen?')) return;
             
-            // Merke welche Felder bereits ausgefüllt waren
-            const wasFilledBefore = grid.map(row => row.map(cell => cell !== 0));
-            
             grid = solution.map(row => [...row]);
             renderGrid();
             
-            // Neue Zahlen rot markieren
+            // Nur ursprünglich nicht vorgegebene Felder rot markieren
             const cells = document.querySelectorAll('.cell');
             for (let r = 0; r < gridSize; r++) {
                 for (let c = 0; c < gridSize; c++) {
                     const index = r * gridSize + c;
-                    if (!wasFilledBefore[r][c]) {
+                    if (!givenCells[r][c]) {
+                        cells[index].classList.remove('user-input');
                         cells[index].classList.add('solution-new');
                     }
                 }
