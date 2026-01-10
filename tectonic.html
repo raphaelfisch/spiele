@@ -777,22 +777,27 @@
             }
             shuffleArray(cells);
             
-            // Zielanzahl zu entfernender Zellen je nach Schwierigkeit
-            const totalCells = gridSize * gridSize;
+            // Erlaubte Techniken je nach Schwierigkeit
+            let allowedTechniques;
             let targetRemove;
+            const totalCells = gridSize * gridSize;
+            
             switch (difficulty) {
                 case 'easy':
-                    targetRemove = Math.floor(totalCells * 0.45);
+                    allowedTechniques = ['nakedSingles']; // Nur einfachste Technik
+                    targetRemove = Math.floor(totalCells * 0.5);
                     break;
                 case 'medium':
-                    targetRemove = Math.floor(totalCells * 0.55);
+                    allowedTechniques = ['nakedSingles', 'hiddenSingles'];
+                    targetRemove = Math.floor(totalCells * 0.6);
                     break;
                 case 'hard':
-                    targetRemove = Math.floor(totalCells * 0.65);
+                    allowedTechniques = ['nakedSingles', 'hiddenSingles', 'elimination'];
+                    targetRemove = Math.floor(totalCells * 0.7);
                     break;
             }
             
-            // Versuche Zellen zu entfernen, solange Rätsel eindeutig lösbar bleibt
+            // Versuche Zellen zu entfernen, solange Rätsel mit erlaubten Techniken lösbar bleibt
             let removed = 0;
             for (const cell of cells) {
                 if (removed >= targetRemove) break;
@@ -801,11 +806,11 @@
                 const backup = grid[r][c];
                 grid[r][c] = 0;
                 
-                // Prüfe ob noch eindeutig lösbar
-                if (isUniquelySolvable()) {
+                // Prüfe ob noch mit erlaubten Techniken lösbar
+                if (isSolvableWith(allowedTechniques)) {
                     removed++;
                 } else {
-                    // Nicht eindeutig lösbar - Zahl zurück
+                    // Nicht lösbar mit erlaubten Techniken - Zahl zurück
                     grid[r][c] = backup;
                 }
             }
@@ -814,8 +819,8 @@
             givenCells = grid.map(row => row.map(cell => cell !== 0));
         }
         
-        // Prüft ob das aktuelle Grid eindeutig mit Logik lösbar ist
-        function isUniquelySolvable() {
+        // Prüft ob das aktuelle Grid mit bestimmten Techniken lösbar ist
+        function isSolvableWith(allowedTechniques) {
             // Kopie des Grids zum Testen
             const testGrid = grid.map(row => [...row]);
             
@@ -832,54 +837,76 @@
                 }
             }
             
-            // Logisch lösen
+            // Logisch lösen mit erlaubten Techniken
             let changed = true;
             while (changed) {
                 changed = false;
                 
                 // Technik 1: Naked Singles (nur eine Möglichkeit in Zelle)
-                for (let r = 0; r < gridSize; r++) {
-                    for (let c = 0; c < gridSize; c++) {
-                        if (testGrid[r][c] === 0 && candidates[r][c].size === 1) {
-                            const value = [...candidates[r][c]][0];
-                            testGrid[r][c] = value;
-                            candidates[r][c] = new Set();
-                            updateCandidates(candidates, testGrid, r, c, value);
-                            changed = true;
-                        } else if (testGrid[r][c] === 0 && candidates[r][c].size === 0) {
-                            return false; // Keine Lösung möglich
+                if (allowedTechniques.includes('nakedSingles')) {
+                    for (let r = 0; r < gridSize; r++) {
+                        for (let c = 0; c < gridSize; c++) {
+                            if (testGrid[r][c] === 0 && candidates[r][c].size === 1) {
+                                const value = [...candidates[r][c]][0];
+                                testGrid[r][c] = value;
+                                candidates[r][c] = new Set();
+                                updateCandidates(candidates, testGrid, r, c, value);
+                                changed = true;
+                            } else if (testGrid[r][c] === 0 && candidates[r][c].size === 0) {
+                                return false; // Keine Lösung möglich
+                            }
                         }
                     }
                 }
                 
                 // Technik 2: Hidden Singles (Zahl nur an einer Stelle im Bereich möglich)
-                const regionIds = new Set();
-                for (let r = 0; r < gridSize; r++) {
-                    for (let c = 0; c < gridSize; c++) {
-                        regionIds.add(regions[r][c]);
+                if (allowedTechniques.includes('hiddenSingles')) {
+                    const regionIds = new Set();
+                    for (let r = 0; r < gridSize; r++) {
+                        for (let c = 0; c < gridSize; c++) {
+                            regionIds.add(regions[r][c]);
+                        }
+                    }
+                    
+                    for (const regionId of regionIds) {
+                        const regionCells = getRegionCells(regionId);
+                        const regionSize = regionCells.length;
+                        
+                        for (let num = 1; num <= regionSize; num++) {
+                            // Finde alle Zellen wo diese Zahl möglich ist
+                            const possibleCells = regionCells.filter(({r, c}) => 
+                                testGrid[r][c] === 0 && candidates[r][c].has(num)
+                            );
+                            
+                            if (possibleCells.length === 1) {
+                                const {r, c} = possibleCells[0];
+                                testGrid[r][c] = num;
+                                candidates[r][c] = new Set();
+                                updateCandidates(candidates, testGrid, r, c, num);
+                                changed = true;
+                            } else if (possibleCells.length === 0) {
+                                // Prüfe ob Zahl schon im Bereich ist
+                                const hasNum = regionCells.some(({r, c}) => testGrid[r][c] === num);
+                                if (!hasNum) return false; // Keine Lösung möglich
+                            }
+                        }
                     }
                 }
                 
-                for (const regionId of regionIds) {
-                    const regionCells = getRegionCells(regionId);
-                    const regionSize = regionCells.length;
-                    
-                    for (let num = 1; num <= regionSize; num++) {
-                        // Finde alle Zellen wo diese Zahl möglich ist
-                        const possibleCells = regionCells.filter(({r, c}) => 
-                            testGrid[r][c] === 0 && candidates[r][c].has(num)
-                        );
-                        
-                        if (possibleCells.length === 1) {
-                            const {r, c} = possibleCells[0];
-                            testGrid[r][c] = num;
-                            candidates[r][c] = new Set();
-                            updateCandidates(candidates, testGrid, r, c, num);
-                            changed = true;
-                        } else if (possibleCells.length === 0) {
-                            // Prüfe ob Zahl schon im Bereich ist
-                            const hasNum = regionCells.some(({r, c}) => testGrid[r][c] === num);
-                            if (!hasNum) return false; // Keine Lösung möglich
+                // Technik 3: Elimination (Kandidaten durch Nachbarn eliminieren)
+                if (allowedTechniques.includes('elimination')) {
+                    for (let r = 0; r < gridSize; r++) {
+                        for (let c = 0; c < gridSize; c++) {
+                            if (testGrid[r][c] === 0) {
+                                const before = candidates[r][c].size;
+                                candidates[r][c] = getCandidates(testGrid, r, c);
+                                if (candidates[r][c].size < before) {
+                                    changed = true;
+                                }
+                                if (candidates[r][c].size === 0) {
+                                    return false;
+                                }
+                            }
                         }
                     }
                 }
@@ -889,7 +916,7 @@
             for (let r = 0; r < gridSize; r++) {
                 for (let c = 0; c < gridSize; c++) {
                     if (testGrid[r][c] === 0) {
-                        return false; // Nicht vollständig lösbar mit Logik
+                        return false; // Nicht vollständig lösbar mit erlaubten Techniken
                     }
                 }
             }
