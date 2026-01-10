@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Tectonic Rätsel Generator</title>
     <style>
         * {
@@ -11,16 +11,26 @@
             padding: 0;
         }
 
+        * {
+            box-sizing: border-box;
+        }
+        
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: #f0f0f0;
             min-height: 100vh;
-            padding: 15px;
+            min-height: 100dvh;
+            margin: 0;
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .container {
             max-width: 500px;
-            margin: 0 auto;
+            width: 100%;
+            padding: 15px;
         }
 
         h1 {
@@ -303,6 +313,24 @@
         .btn-info:hover {
             background: #555;
         }
+        
+        .btn-fullscreen {
+            background: #666;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 44px;
+            min-width: 44px;
+        }
+        
+        .btn-fullscreen:hover {
+            background: #555;
+        }
+        
+        .btn-fullscreen svg {
+            width: 18px;
+            height: 18px;
+        }
 
         /* Popup Styles */
         .popup-overlay {
@@ -377,16 +405,27 @@
         .region-3 { background-color: #BBDEFB; } /* Blau */
 
         @media (max-width: 500px) {
+            .container {
+                padding: 10px;
+            }
             .controls {
                 padding: 10px;
             }
             .control-row {
-                gap: 5px;
+                gap: 4px;
             }
             select, button {
                 padding: 8px 0;
-                font-size: 0.8rem;
-                width: 65px;
+                font-size: 0.75rem;
+                width: 58px;
+            }
+            .btn-fullscreen {
+                width: 40px;
+                min-width: 40px;
+            }
+            .btn-fullscreen svg {
+                width: 16px;
+                height: 16px;
             }
         }
     </style>
@@ -422,6 +461,14 @@
                 <button class="btn-secondary" onclick="checkSolution()">Prüfen</button>
                 <button class="btn-warning" onclick="showSolution()">Lösung</button>
                 <button class="btn-info" onclick="toggleRules()">Regeln</button>
+                <button class="btn-fullscreen" id="fullscreenButton" title="Vollbild">
+                    <svg class="fullscreen-icon expand" viewBox="0 0 24 24">
+                        <path d="M3 3h6v2H5v4H3V3zm12 0h6v6h-2V5h-4V3zM3 15h2v4h4v2H3v-6zm16 0h2v6h-6v-2h4v-4z" fill="currentColor"/>
+                    </svg>
+                    <svg class="fullscreen-icon collapse" viewBox="0 0 24 24" style="display:none;">
+                        <path d="M9 9H3V7h4V3h2v6zm6 0V3h2v4h4v2h-6zM9 15H3v2h4v4h2v-6zm6 0v6h2v-4h4v-2h-6z" fill="currentColor"/>
+                    </svg>
+                </button>
             </div>
         </div>
         
@@ -1265,6 +1312,33 @@
             const overlay = document.getElementById('rulesOverlay');
             overlay.classList.toggle('active');
         }
+        
+        // Fullscreen Funktionalität
+        const fullscreenButton = document.getElementById('fullscreenButton');
+        
+        fullscreenButton.addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log('Fullscreen nicht möglich:', err);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        });
+        
+        document.addEventListener('fullscreenchange', () => {
+            const expandIcon = fullscreenButton.querySelector('.expand');
+            const collapseIcon = fullscreenButton.querySelector('.collapse');
+            if (document.fullscreenElement) {
+                expandIcon.style.display = 'none';
+                collapseIcon.style.display = 'block';
+                fullscreenButton.title = 'Vollbild beenden';
+            } else {
+                expandIcon.style.display = 'block';
+                collapseIcon.style.display = 'none';
+                fullscreenButton.title = 'Vollbild';
+            }
+        });
     </script>
 </body>
 </html>
