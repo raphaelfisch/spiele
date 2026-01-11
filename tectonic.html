@@ -108,7 +108,7 @@
         .game-area {
             background: white;
             border-radius: 10px;
-            padding: 15px;
+            padding: 20px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             position: relative;
         }
@@ -116,7 +116,7 @@
         .grid-container {
             display: flex;
             justify-content: center;
-            padding: 8px;
+            padding: 15px;
             overflow: visible;
         }
 
@@ -130,15 +130,15 @@
         }
 
         .cell {
-            width: clamp(40px, 10vw, 60px);
-            height: clamp(40px, 10vw, 60px);
+            width: var(--cell-size, 50px);
+            height: var(--cell-size, 50px);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: clamp(1.2rem, 4vw, 1.8rem);
+            font-size: var(--cell-font, 1.5rem);
             font-weight: bold;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: background-color 0.2s, box-shadow 0.2s;
             position: relative;
             user-select: none;
             -webkit-user-select: none;
@@ -253,9 +253,9 @@
         }
 
         .num-btn {
-            width: 40px;
-            height: 40px;
-            font-size: 1.2rem;
+            width: var(--numpad-size, 40px);
+            height: var(--numpad-size, 40px);
+            font-size: var(--numpad-font, 1.2rem);
             border-radius: 8px;
             display: flex;
             align-items: center;
@@ -571,6 +571,7 @@
                     hideLoadingWithDelay(() => {
                         renderGrid();
                         renderNumberPad();
+                        calculateSizes();
                     });
                     return;
                 }
@@ -1312,6 +1313,63 @@
             const overlay = document.getElementById('rulesOverlay');
             overlay.classList.toggle('active');
         }
+        
+        // Berechnet optimale Zellgröße basierend auf verfügbarer Höhe und Breite
+        function calculateSizes() {
+            const viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+            const viewportWidth = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+            
+            // Elemente messen
+            const controls = document.querySelector('.controls');
+            const numberPad = document.getElementById('numberPad');
+            
+            // Verfügbare Höhe berechnen
+            const controlsHeight = controls ? controls.offsetHeight : 60;
+            const numberPadHeight = numberPad ? numberPad.offsetHeight : 50;
+            
+            const heightForGrid = viewportHeight 
+                - controlsHeight 
+                - numberPadHeight
+                - 150; // Container + Game-Area Padding + Margins + Buffer
+            
+            // Verfügbare Breite berechnen
+            const maxContainerWidth = Math.min(500, viewportWidth - 30);
+            const widthForGrid = maxContainerWidth - 80; // Game-Area + Grid-Container Padding
+            
+            // Zellgröße: kleinerer Wert von Höhe und Breite
+            let cellSize = Math.min(
+                Math.floor(heightForGrid / gridSize),
+                Math.floor(widthForGrid / gridSize)
+            );
+            
+            // Limits setzen
+            const minSize = 35;
+            const maxSize = 75;
+            cellSize = Math.max(minSize, Math.min(maxSize, cellSize));
+            
+            // CSS Variablen setzen
+            const fontSize = Math.max(1, cellSize / 35);
+            document.documentElement.style.setProperty('--cell-size', cellSize + 'px');
+            document.documentElement.style.setProperty('--cell-font', fontSize + 'rem');
+            
+            // Number-pad proportional
+            const numpadSize = Math.max(32, Math.min(48, cellSize * 0.75));
+            const numpadFont = Math.max(1, numpadSize / 35);
+            document.documentElement.style.setProperty('--numpad-size', numpadSize + 'px');
+            document.documentElement.style.setProperty('--numpad-font', numpadFont + 'rem');
+        }
+        
+        // Bei Resize neu berechnen
+        window.addEventListener('resize', calculateSizes);
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', calculateSizes);
+        }
+        window.addEventListener('orientationchange', () => {
+            setTimeout(calculateSizes, 100);
+        });
+        
+        // Initial berechnen nach kurzem Delay (DOM muss fertig sein)
+        setTimeout(calculateSizes, 50);
         
         // Fullscreen Funktionalität
         const fullscreenButton = document.getElementById('fullscreenButton');
