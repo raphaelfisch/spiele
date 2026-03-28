@@ -4,424 +4,634 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dobble</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f0f2f5;
+        :root {
+            --bg: #ffffff;
+            --surface: #f4f4f8;
+            --card: #f0eff7;
+            --accent1: #ff6b6b;
+            --accent2: #f5a623;
+            --accent3: #2ecc71;
+            --accent4: #3b82f6;
+            --text: #1a1a2e;
+            --text-muted: #6b7280;
+            --radius: 20px;
         }
 
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Nunito', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        body::before, body::after { display: none; }
+
         .container {
-            max-width: 1000px;
+            max-width: 900px;
             margin: 0 auto;
+            padding: 30px 20px;
+            position: relative;
+            z-index: 1;
             text-align: center;
         }
 
-        h1 {
-            color: #1a365d;
-            margin-bottom: 20px;
+        .logo {
+            font-family: 'Fredoka One', cursive;
+            font-size: 3.5rem;
+            background: linear-gradient(135deg, var(--accent1), var(--accent2), var(--accent4));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+            animation: logoPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        @keyframes logoPop {
+            from { transform: scale(0.5); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
         }
 
-        .level-selection {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 20px;
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 1rem;
+            margin-bottom: 40px;
+            font-weight: 600;
         }
 
-        .button {
-            padding: 15px 25px;
-            border: 2px solid #3182ce;
-            border-radius: 8px;
-            background: white;
+        .section-title {
+            font-family: 'Fredoka One', cursive;
+            font-size: 1.6rem;
+            margin-bottom: 20px;
+            color: var(--accent2);
+        }
+
+        .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 20px; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; }
+        .grid-4 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 20px; }
+        @media (min-width: 600px) { .grid-4 { grid-template-columns: repeat(4, 1fr); } }
+
+        .choice-card {
+            background: var(--card);
+            border: 2px solid rgba(255,255,255,0.08);
+            border-radius: var(--radius);
+            padding: 20px 15px;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+            animation: fadeUp 0.4s ease both;
+            color: var(--text);
         }
+        .choice-card:hover {
+            transform: translateY(-4px) scale(1.02);
+            border-color: rgba(255,255,255,0.25);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+        }
+        .choice-card:active { transform: scale(0.97); }
+        .choice-card .card-emoji { font-size: 2.5rem; margin-bottom: 8px; }
+        .choice-card .card-title { font-family: 'Fredoka One', cursive; font-size: 1.2rem; margin-bottom: 4px; }
+        .choice-card .card-desc { font-size: 0.8rem; color: var(--text-muted); font-weight: 600; }
 
-        .button:hover {
-            background: #ebf8ff;
-            border-color: #4299e1;
+        .theme-animals { border-color: rgba(107,203,119,0.3); }
+        .theme-animals:hover { border-color: var(--accent3); box-shadow: 0 12px 40px rgba(107,203,119,0.2); }
+        .theme-animals .card-title { color: var(--accent3); }
+
+        .theme-math { border-color: rgba(255,107,107,0.3); }
+        .theme-math:hover { border-color: var(--accent1); box-shadow: 0 12px 40px rgba(255,107,107,0.2); }
+        .theme-math .card-title { color: var(--accent1); }
+
+        .theme-tech { border-color: rgba(77,150,255,0.3); }
+        .theme-tech:hover { border-color: var(--accent4); box-shadow: 0 12px 40px rgba(77,150,255,0.2); }
+        .theme-tech .card-title { color: var(--accent4); }
+
+        .theme-food { border-color: rgba(255,217,61,0.3); }
+        .theme-food:hover { border-color: var(--accent2); box-shadow: 0 12px 40px rgba(255,217,61,0.2); }
+        .theme-food .card-title { color: var(--accent2); }
+
+        .level-1 { border-color: rgba(107,203,119,0.3); }
+        .level-1:hover { border-color: var(--accent3); }
+        .level-1 .card-title { color: var(--accent3); }
+
+        .level-2 { border-color: rgba(255,217,61,0.3); }
+        .level-2:hover { border-color: var(--accent2); }
+        .level-2 .card-title { color: var(--accent2); }
+
+        .level-3 { border-color: rgba(255,107,107,0.3); }
+        .level-3:hover { border-color: var(--accent1); }
+        .level-3 .card-title { color: var(--accent1); }
+
+        .option-btn {
+            background: var(--card);
+            border: 2px solid rgba(255,255,255,0.08);
+            border-radius: 50px;
+            padding: 14px 20px;
+            color: var(--text);
+            font-family: 'Nunito', sans-serif;
+            font-size: 1rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: all 0.2s;
+            animation: fadeUp 0.4s ease both;
         }
+        .option-btn:hover {
+            background: var(--accent4);
+            border-color: var(--accent4);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(77,150,255,0.3);
+        }
+        .option-btn:active { transform: scale(0.97); }
+
+        .back-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-family: 'Nunito', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            padding: 10px 16px;
+            border-radius: 50px;
+            transition: all 0.2s;
+            margin-top: 10px;
+        }
+        .back-btn:hover { color: var(--text); background: rgba(255,255,255,0.07); }
+
+        .hud {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--card);
+            border-radius: 50px;
+            padding: 12px 20px;
+            margin-bottom: 24px;
+            border: 1px solid rgba(0,0,0,0.08);
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .hud-item { font-weight: 800; font-size: 0.95rem; }
+        .hud-label { color: var(--text-muted); font-size: 0.75rem; display: block; }
+        .hud-value { font-family: 'Fredoka One', cursive; font-size: 1.3rem; }
+        .hud-score .hud-value { color: var(--accent2); }
+        .hud-round .hud-value { color: var(--accent4); }
+        .hud-timer .hud-value { color: var(--accent1); font-family: monospace; font-size: 1.1rem; }
+
+        .abort-btn {
+            background: rgba(255,107,107,0.15);
+            border: 1px solid rgba(255,107,107,0.3);
+            color: var(--accent1);
+            font-family: 'Nunito', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 800;
+            cursor: pointer;
+            padding: 8px 16px;
+            border-radius: 50px;
+            transition: all 0.2s;
+        }
+        .abort-btn:hover { background: var(--accent1); color: white; }
 
         .game-board {
             display: flex;
             justify-content: center;
-            gap: 20px;
+            gap: 24px;
             flex-wrap: wrap;
             margin-bottom: 20px;
         }
 
-        .card {
-            width: 300px;
-            height: 300px;
-            border: 2px solid #3182ce;
+        .dobble-card {
+            width: 280px;
+            height: 280px;
             border-radius: 50%;
             position: relative;
-            background: white;
+            background: #fff;
+            border: 3px solid var(--accent4);
+            box-shadow: 0 4px 24px rgba(59,130,246,0.15);
+            overflow: hidden;
+            animation: cardIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+        }
+        .dobble-card:nth-child(2) { animation-delay: 0.1s; }
+
+        @keyframes cardIn {
+            from { transform: scale(0.6) rotate(-10deg); opacity: 0; }
+            to { transform: scale(1) rotate(0deg); opacity: 1; }
         }
 
-        .symbol {
+        .symbol-btn {
             position: absolute;
-            width: 90px;
-            height: 90px;
             transform: translate(-50%, -50%);
             cursor: pointer;
-            background: white;
+            background: transparent;
             border: none;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 36px;
-            transition: all 0.3s;
+            line-height: 1;
+            padding: 4px;
+            transition: filter 0.15s;
+        }
+        .symbol-btn:hover { filter: brightness(1.3) drop-shadow(0 0 6px rgba(255,255,255,0.4)); }
+        .symbol-btn:active { filter: brightness(0.8); }
+        .symbol-btn:disabled { cursor: default; }
+
+        .message-box {
+            padding: 14px 24px;
+            border-radius: 50px;
+            font-weight: 800;
+            font-size: 1rem;
+            margin: 0 auto 20px;
+            max-width: 500px;
+            animation: msgPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: none;
+        }
+        .message-box.show { display: block; }
+        .message-box.success { background: rgba(107,203,119,0.2); border: 1px solid var(--accent3); color: var(--accent3); }
+        .message-box.error { background: rgba(255,107,107,0.2); border: 1px solid var(--accent1); color: var(--accent1); }
+        @keyframes msgPop {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
         }
 
-        .symbol:hover {
-            background: #ebf8ff;
+        .end-screen { animation: fadeUp 0.5s ease both; }
+        .end-score {
+            font-family: 'Fredoka One', cursive;
+            font-size: 5rem;
+            background: linear-gradient(135deg, var(--accent2), var(--accent1));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin: 20px 0 8px;
         }
+        .end-label { color: var(--text-muted); font-weight: 700; margin-bottom: 30px; }
+        .end-time { font-family: monospace; font-size: 1.2rem; color: var(--accent4); margin-bottom: 30px; }
 
-        .symbol.selected {
-            background: #bef8fd;
-            border: 2px solid #3182ce;
+        .selection-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--card);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 50px;
+            padding: 8px 16px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            margin-bottom: 24px;
         }
+        .selection-badge span { color: var(--text); }
 
-        .message {
-            margin: 20px 0;
-            padding: 15px;
-            border-radius: 8px;
-        }
+        .choice-card:nth-child(1) { animation-delay: 0.05s; }
+        .choice-card:nth-child(2) { animation-delay: 0.1s; }
+        .choice-card:nth-child(3) { animation-delay: 0.15s; }
+        .choice-card:nth-child(4) { animation-delay: 0.2s; }
 
-        .message.success {
-            background: #c6f6d5;
-            color: #276749;
-        }
-
-        .message.error {
-            background: #fed7d7;
-            color: #9b2c2c;
-        }
-
-        .back-button {
-            padding: 10px 20px;
-            background: none;
-            border: none;
-            color: #4a5568;
-            cursor: pointer;
-        }
-
-        .back-button:hover {
-            color: #1a202c;
-        }
-
-        .timer {
-            font-family: monospace;
-            font-size: 20px;
-            margin: 10px 0;
+        @keyframes fadeUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
         }
     </style>
 </head>
 <body>
-    <div id="game" class="container">
-        <h1>Dobble</h1>
-        <div id="game-content"></div>
-    </div>
+<div class="container">
+    <div class="logo">🎯 Dobble</div>
+    <div class="subtitle">Finde das gemeinsame Symbol!</div>
+    <div id="game-content"></div>
+</div>
 
-    <script>
-        const symbols = [
-            { id: 1, symbol: '📚', name: 'Buch' },
-            { id: 2, symbol: '✏️', name: 'Stift' },
-            { id: 3, symbol: '🧮', name: 'Rechner' },
-            { id: 4, symbol: '🌍', name: 'Globus' },
-            { id: 5, symbol: '📏', name: 'Lineal' },
-            { id: 6, symbol: '🎨', name: 'Kunst' },
-            { id: 7, symbol: '🎵', name: 'Musik' },
-            { id: 8, symbol: '📝', name: 'Hausaufgaben' },
-            { id: 9, symbol: '🎓', name: 'Abschluss' },
-            { id: 10, symbol: '💻', name: 'Computer' },
-            { id: 11, symbol: '🎒', name: 'Rucksack' }
-        ];
+<script>
+const symbolSets = {
+    animals: {
+        name: 'Tiere', emoji: '🐾', cssClass: 'theme-animals',
+        symbols: [
+            {id:1,s:'🐶'},{id:2,s:'🐱'},{id:3,s:'🐭'},{id:4,s:'🐹'},{id:5,s:'🐰'},
+            {id:6,s:'🦊'},{id:7,s:'🐻'},{id:8,s:'🐼'},{id:9,s:'🐨'},{id:10,s:'🐯'},
+            {id:11,s:'🦁'},{id:12,s:'🐮'},{id:13,s:'🐸'},{id:14,s:'🐵'},{id:15,s:'🐔'}
+        ]
+    },
+    math: {
+        name: 'Mathe', emoji: '➕', cssClass: 'theme-math',
+        symbols: [
+            {id:1,s:'➕'},{id:2,s:'➖'},{id:3,s:'✖️'},{id:4,s:'➗'},{id:5,s:'🔢'},
+            {id:6,s:'📐'},{id:7,s:'📏'},{id:8,s:'💯'},{id:9,s:'🧮'},{id:10,s:'📊'},
+            {id:11,s:'📈'},{id:12,s:'🔵'},{id:13,s:'🔺'},{id:14,s:'⬛'},{id:15,s:'🔷'}
+        ]
+    },
+    tech: {
+        name: 'Technik', emoji: '💻', cssClass: 'theme-tech',
+        symbols: [
+            {id:1,s:'💻'},{id:2,s:'📱'},{id:3,s:'🖥️'},{id:4,s:'⌨️'},{id:5,s:'🖱️'},
+            {id:6,s:'📷'},{id:7,s:'🎮'},{id:8,s:'🔋'},{id:9,s:'💾'},{id:10,s:'📡'},
+            {id:11,s:'🔌'},{id:12,s:'🤖'},{id:13,s:'🛸'},{id:14,s:'🔦'},{id:15,s:'🖨️'}
+        ]
+    },
+    food: {
+        name: 'Essen', emoji: '🍕', cssClass: 'theme-food',
+        symbols: [
+            {id:1,s:'🍕'},{id:2,s:'🍔'},{id:3,s:'🌮'},{id:4,s:'🍜'},{id:5,s:'🍣'},
+            {id:6,s:'🍩'},{id:7,s:'🍦'},{id:8,s:'🎂'},{id:9,s:'🍇'},{id:10,s:'🍓'},
+            {id:11,s:'🥑'},{id:12,s:'🧁'},{id:13,s:'🥐'},{id:14,s:'🍟'},{id:15,s:'🥨'}
+        ]
+    }
+};
 
-        const levels = [
-            { id: 1, name: 'Level 1', description: 'Gleiche Symbole auf beiden Karten' },
-            { id: 2, name: 'Level 2', description: 'Symbole ohne Animation' },
-            { id: 3, name: 'Level 3', description: 'Symbole mit unterschiedlicher Größe' }
-        ];
+const levels = [
+    { id:1, name:'Einfach', emoji:'😊', desc:'4 Symbole · gleich gross · aufrecht',        n:4, rotate:false, varySize:false },
+    { id:2, name:'Mittel',  emoji:'😅', desc:'6 Symbole · gedreht · leicht verschieden',   n:6, rotate:true,  varySize:true, sizeRange:[0.85,1.15] },
+    { id:3, name:'Schwer',  emoji:'🔥', desc:'8 Symbole · stark gedreht · sehr verschieden', n:8, rotate:true, varySize:true, sizeRange:[0.6,1.4] }
+];
 
-        const roundOptions = [
-            { value: 5, label: '5 Runden' },
-            { value: 10, label: '10 Runden' },
-            { value: 20, label: '20 Runden' }
-        ];
+class DobbleGame {
+    constructor() {
+        this.el = document.getElementById('game-content');
+        this.selectedTheme = null;
+        this.selectedLevel = null;
+        this.totalRounds = null;
+        this.showTimer = false;
+        this.startTime = null;
+        this.roundStartTimes = [];
+        this.totalGameTime = 0;
+        this.timerInterval = null;
+        this.currentRound = 0;
+        this.score = 0;
+        this.cards = [];
+        this.init();
+    }
 
-        class DobbleGame {
-            constructor() {
-                this.gameContent = document.getElementById('game-content');
-                this.selectedLevel = null;
-                this.totalRounds = null;
-                this.showTimer = false;
-                this.startTime = null;
-                this.roundStartTimes = [];
-                this.totalGameTime = 0;
-                this.timerInterval = null;
-                this.currentRound = 0;
-                this.score = 0;
-                this.cards = [];
-                
-                this.init();
-            }
+    init() { this.showThemeSelection(); }
 
-            init() {
-                this.showLevelSelection();
-            }
-
-            showLevelSelection() {
-                this.gameContent.innerHTML = `
-                    <div class="level-selection">
-                        ${levels.map(level => `
-                            <button class="button" onclick="game.selectLevel(${level.id})">
-                                <h2>${level.name}</h2>
-                                <p>${level.description}</p>
-                            </button>
-                        `).join('')}
-                    </div>
-                `;
-            }
-
-            selectLevel(levelId) {
-                this.selectedLevel = levelId;
-                this.showRoundSelection();
-            }
-
-            showRoundSelection() {
-                this.gameContent.innerHTML = `
-                    <div class="level-selection">
-                        ${roundOptions.map(option => `
-                            <button class="button" onclick="game.selectRounds(${option.value})">
-                                ${option.label}
-                            </button>
-                        `).join('')}
-                    </div>
-                    <button class="back-button" onclick="game.showLevelSelection()">
-                        ← Zurück zur Level-Auswahl
+    showThemeSelection() {
+        this.el.innerHTML = `
+            <div class="section-title">Wähle dein Thema</div>
+            <div class="grid-4">
+                ${Object.entries(symbolSets).map(([key, t]) => `
+                    <button class="choice-card ${t.cssClass}" onclick="game.selectTheme('${key}')">
+                        <div class="card-emoji">${t.emoji}</div>
+                        <div class="card-title">${t.name}</div>
                     </button>
-                `;
-            }
+                `).join('')}
+            </div>
+        `;
+    }
 
-            selectRounds(rounds) {
-                this.totalRounds = rounds;
-                this.showTimerSelection();
-            }
+    selectTheme(key) { this.selectedTheme = key; this.showLevelSelection(); }
 
-            showTimerSelection() {
-                this.gameContent.innerHTML = `
-                    <div class="level-selection">
-                        <button class="button" onclick="game.startGame(true)">
-                            Mit Timer
-                        </button>
-                        <button class="button" onclick="game.startGame(false)">
-                            Ohne Timer
-                        </button>
-                    </div>
-                    <button class="back-button" onclick="game.showRoundSelection()">
-                        ← Zurück zur Rundenauswahl
+    showLevelSelection() {
+        const t = symbolSets[this.selectedTheme];
+        this.el.innerHTML = `
+            <div class="selection-badge">${t.emoji} <span>${t.name}</span></div>
+            <div class="section-title">Wähle dein Level</div>
+            <div class="grid-3">
+                ${levels.map(l => `
+                    <button class="choice-card level-${l.id}" onclick="game.selectLevel(${l.id})">
+                        <div class="card-emoji">${l.emoji}</div>
+                        <div class="card-title">${l.name}</div>
+                        <div class="card-desc">${l.desc}</div>
                     </button>
-                `;
-            }
+                `).join('')}
+            </div>
+            <button class="back-btn" onclick="game.init()">← Zurück</button>
+        `;
+    }
 
-            startGame(withTimer) {
-                this.showTimer = withTimer;
-                this.currentRound = 0;
-                this.score = 0;
-                this.totalGameTime = 0;
-                this.roundStartTimes = [];
-                if (withTimer) {
-                    this.startTime = Date.now();
-                    this.startTimer();
-                }
-                this.nextRound();
-            }
+    selectLevel(id) { this.selectedLevel = id; this.showRoundSelection(); }
 
-            startTimer() {
-                if (this.timerInterval) {
-                    clearInterval(this.timerInterval);
-                }
-                this.roundStartTimes.push(Date.now());
-                this.timerInterval = setInterval(() => {
-                    const timerElement = document.getElementById('timer');
-                    if (timerElement) {
-                        const elapsed = (Date.now() - this.startTime) / 1000;
-                        timerElement.textContent = `Zeit: ${elapsed.toFixed(3)} Sekunden`;
-                    }
-                }, 16);
-            }
+    showRoundSelection() {
+        const t = symbolSets[this.selectedTheme];
+        const l = levels[this.selectedLevel - 1];
+        this.el.innerHTML = `
+            <div class="selection-badge">${t.emoji} <span>${t.name}</span> · ${l.emoji} <span>${l.name}</span></div>
+            <div class="section-title">Wie viele Runden?</div>
+            <div class="grid-3">
+                ${[5,10,20].map(r => `
+                    <button class="option-btn" onclick="game.selectRounds(${r})">${r} Runden</button>
+                `).join('')}
+            </div>
+            <button class="back-btn" onclick="game.showLevelSelection()">← Zurück</button>
+        `;
+    }
 
-            stopTimer() {
-                if (this.timerInterval) {
-                    clearInterval(this.timerInterval);
-                    this.timerInterval = null;
-                    
-                    // Berechne die Zeit für diese Runde
-                    const roundEndTime = Date.now();
-                    const roundStartTime = this.roundStartTimes[this.currentRound - 1];
-                    const roundTime = (roundEndTime - roundStartTime) / 1000;
-                    this.totalGameTime += roundTime;
-                }
-            }
+    selectRounds(r) { this.totalRounds = r; this.showTimerSelection(); }
 
-            generateCards() {
-                const card1Symbols = [...symbols]
-                    .sort(() => Math.random() - 0.5)
-                    .slice(0, 6);
-                
-                const matchingSymbol = card1Symbols[Math.floor(Math.random() * 6)];
-                const remainingSymbols = symbols.filter(s => !card1Symbols.includes(s));
-                
-                const card2Symbols = [
-                    matchingSymbol,
-                    ...remainingSymbols
-                        .sort(() => Math.random() - 0.5)
-                        .slice(0, 5)
-                ].sort(() => Math.random() - 0.5);
+    showTimerSelection() {
+        const t = symbolSets[this.selectedTheme];
+        const l = levels[this.selectedLevel - 1];
+        this.el.innerHTML = `
+            <div class="selection-badge">${t.emoji} <span>${t.name}</span> · ${l.emoji} <span>${l.name}</span> · <span>${this.totalRounds} Runden</span></div>
+            <div class="section-title">Mit oder ohne Timer?</div>
+            <div class="grid-2">
+                <button class="option-btn" onclick="game.startGame(true)">⏱ Mit Timer</button>
+                <button class="option-btn" onclick="game.startGame(false)">🎯 Ohne Timer</button>
+            </div>
+            <button class="back-btn" onclick="game.showRoundSelection()">← Zurück</button>
+        `;
+    }
 
-                return [card1Symbols, card2Symbols];
-            }
+    startGame(withTimer) {
+        this.showTimer = withTimer;
+        this.currentRound = 0;
+        this.score = 0;
+        this.totalGameTime = 0;
+        this.roundStartTimes = [];
+        this.stopTimer();
+        this.nextRound();
+    }
 
-            getSymbolPosition(index, total = 6) {
-                const centerX = 50;
-                const centerY = 50;
-                const radius = 35;
-                
-                if (index === total - 1) {
-                    return { x: centerX, y: centerY };
-                }
+    startTimer() {
+        if (this.timerInterval) { clearInterval(this.timerInterval); this.timerInterval = null; }
+        this.startTime = Date.now();
+        this.roundStartTimes.push(this.startTime);
+        this.timerInterval = setInterval(() => {
+            const el = document.getElementById('hud-timer');
+            if (el) el.textContent = ((Date.now() - this.startTime) / 1000).toFixed(2) + 's';
+        }, 50);
+    }
 
-                const angle = (index * (2 * Math.PI / (total - 1))) + Math.random() * 0.5;
-                return {
-                    x: centerX + radius * Math.cos(angle),
-                    y: centerY + radius * Math.sin(angle),
-                    rotation: Math.random() * 360
-                };
-            }
+    stopTimer() {
+        if (this.timerInterval) {
+            clearInterval(this.timerInterval);
+            this.timerInterval = null;
+            const rs = this.roundStartTimes[this.currentRound - 1];
+            if (rs) this.totalGameTime += (Date.now() - rs) / 1000;
+        }
+    }
 
-            nextRound() {
-                this.currentRound++;
-                this.cards = this.generateCards();
-                
-                // Wenn der Timer aktiviert ist, starte ihn neu
-                if (this.showTimer) {
-                    this.startTime = Date.now();
-                    this.startTimer();
-                }
-                
-                this.renderGame();
-            }
+    generateCards() {
+        const level = levels[this.selectedLevel - 1];
+        const pool = [...symbolSets[this.selectedTheme].symbols];
+        const card1 = pool.sort(() => Math.random() - 0.5).slice(0, level.n);
+        const match = card1[Math.floor(Math.random() * level.n)];
+        const rest = pool.filter(s => !card1.includes(s)).sort(() => Math.random() - 0.5).slice(0, level.n - 1);
+        const card2 = [match, ...rest].sort(() => Math.random() - 0.5);
+        return [card1, card2];
+    }
 
-            handleSymbolClick(symbolId) {
-                const matchingSymbol = this.findMatchingSymbol();
-                
-                if (symbolId === matchingSymbol.id) {
-                    // Stoppe den Timer
-                    this.stopTimer();
-                    
-                    this.score++;
-                    this.showMessage('Richtig! Das ist das übereinstimmende Symbol!', 'success');
-                    setTimeout(() => {
-                        if (this.currentRound < this.totalRounds) {
-                            this.nextRound();
-                        } else {
-                            this.endGame();
-                        }
-                    }, 1500);
-                } else {
-                    // Punkt sofort abziehen und nur Punktestand aktualisieren
-                    this.score--;
-                    document.querySelector('.game-info p').textContent = `Level ${this.selectedLevel} - Punkte: ${this.score} / Runde: ${this.currentRound} von ${this.totalRounds}`;
-                    this.showMessage('Leider falsch. Ein Punkt wird abgezogen!', 'error');
-                }
-            }
+    getPositions(n) {
+        // Place symbols evenly across the card using annular zones
+        const positions = [];
+        const cx = 50, cy = 50;
+        // Divide card into inner and outer ring so symbols spread out
+        const zones = n <= 4
+            ? [{minR: 10, maxR: 36}]                         // 4 symbols: one ring
+            : [{minR: 6, maxR: 20}, {minR: 22, maxR: 40}];  // 6/8 symbols: inner + outer
+        const minDist = n <= 4 ? 22 : n <= 6 ? 18 : 14;
+        const maxAttempts = 300;
 
-            findMatchingSymbol() {
-                return this.cards[0].find(s1 => 
-                    this.cards[1].some(s2 => s2.id === s1.id)
-                );
-            }
+        for (let i = 0; i < n; i++) {
+            // Alternate between zones for even spread
+            const zone = zones[i % zones.length];
+            let placed = false;
+            for (let attempt = 0; attempt < maxAttempts; attempt++) {
+                const angle = Math.random() * 2 * Math.PI;
+                // Uniform distribution within the zone ring
+                const r = zone.minR + Math.random() * (zone.maxR - zone.minR);
+                const x = cx + r * Math.cos(angle);
+                const y = cy + r * Math.sin(angle);
 
-            showMessage(text, type) {
-                const messageElement = document.getElementById('message');
-                if (messageElement) {
-                    messageElement.textContent = text;
-                    messageElement.className = `message ${type}`;
+                // Stay inside the circle
+                const distFromCenter = Math.sqrt((x-cx)**2 + (y-cy)**2);
+                if (distFromCenter > 43) continue;
+
+                const tooClose = positions.some(p => {
+                    const dx = p.x - x, dy = p.y - y;
+                    return Math.sqrt(dx*dx + dy*dy) < minDist;
+                });
+
+                if (!tooClose) {
+                    positions.push({ x, y });
+                    placed = true;
+                    break;
                 }
             }
-
-            renderGame() {
-                const positions1 = Array(6).fill(0).map((_, i) => this.getSymbolPosition(i));
-                const positions2 = Array(6).fill(0).map((_, i) => this.getSymbolPosition(i));
-
-                this.gameContent.innerHTML = `
-                    <div class="game-info">
-                        <p>Level ${this.selectedLevel} - Punkte: ${this.score} / Runde: ${this.currentRound} von ${this.totalRounds}</p>
-                        ${this.showTimer ? '<div id="timer" class="timer">Zeit: 0.000 Sekunden</div>' : ''}
-                    </div>
-                    <div class="game-board">
-                        ${[0, 1].map(cardIndex => `
-                            <div class="card">
-                                ${this.cards[cardIndex].map((symbol, symbolIndex) => {
-                                    const position = cardIndex === 0 ? positions1[symbolIndex] : positions2[symbolIndex];
-                                    
-                                    let symbolSize = 1;
-                                    
-                                    if (this.selectedLevel === 3) {
-                                        // Zufällige Symbolgröße nur für Level 3
-                                        symbolSize = 0.8 + Math.random() * 0.4;
-                                    }
-
-                                    return `
-                                        <button 
-                                            class="symbol"
-                                            onclick="game.handleSymbolClick(${symbol.id})"
-                                            style="
-                                                left: ${position.x}%;
-                                                top: ${position.y}%;
-                                                transform: translate(-50%, -50%) rotate(${position.rotation}deg) scale(${symbolSize});
-                                                transition: all 0.3s;
-                                            "
-                                        >
-                                            ${symbol.symbol}
-                                        </button>
-                                    `;
-                                }).join('')}
-                            </div>
-                        `).join('')}
-                    </div>
-                    <div id="message" class="message"></div>
-                `;
-            }
-
-            endGame() {
-                this.stopTimer();
-                const finalTime = this.showTimer 
-                    ? `<p>Gesamtzeit: ${this.totalGameTime.toFixed(3)} Sekunden</p>` 
-                    : '';
-                
-                this.gameContent.innerHTML = `
-                    <h2>Spiel beendet!</h2>
-                    <p>Dein Endergebnis: ${this.score} Punkte</p>
-                    ${finalTime}
-                    <div style="margin-top: 20px;">
-                        <button class="button" onclick="game.startGame(${this.showTimer})">
-                            Gleichen Level neu starten
-                        </button>
-                        <button class="button" onclick="game.init()">
-                            Level auswählen
-                        </button>
-                    </div>
-                `;
+            if (!placed) {
+                const angle = Math.random() * 2 * Math.PI;
+                const zone2 = zones[i % zones.length];
+                const r = zone2.minR + Math.random() * (zone2.maxR - zone2.minR);
+                positions.push({ x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) });
             }
         }
+        return positions;
+    }
 
-        const game = new DobbleGame();
-    </script>
+    nextRound() {
+        this.currentRound++;
+        this.cards = this.generateCards();
+        if (this.showTimer) this.startTimer();
+        this.renderGame();
+    }
+
+    handleSymbolClick(symbolId) {
+        const match = this.cards[0].find(s => this.cards[1].some(s2 => s2.id === s.id));
+        document.querySelectorAll('.symbol-btn').forEach(b => b.disabled = true);
+        if (symbolId === match.id) {
+            this.stopTimer();
+            this.score++;
+            this.showMsg('✅ Richtig!', 'success');
+            setTimeout(() => {
+                if (this.currentRound < this.totalRounds) this.nextRound();
+                else this.endGame();
+            }, 1200);
+        } else {
+            if (this.score > 0) this.score--;
+            this.updateHUD();
+            this.showMsg('❌ Falsch! −1 Punkt', 'error');
+            setTimeout(() => {
+                document.querySelectorAll('.symbol-btn').forEach(b => b.disabled = false);
+                this.hideMsg();
+            }, 1000);
+        }
+    }
+
+    updateHUD() {
+        const s = document.getElementById('hud-score');
+        const r = document.getElementById('hud-round');
+        if (s) s.textContent = this.score;
+        if (r) r.textContent = `${this.currentRound} / ${this.totalRounds}`;
+    }
+
+    showMsg(text, type) {
+        const el = document.getElementById('msg');
+        if (el) { el.textContent = text; el.className = `message-box show ${type}`; }
+    }
+
+    hideMsg() {
+        const el = document.getElementById('msg');
+        if (el) el.classList.remove('show');
+    }
+
+    renderGame() {
+        const level = levels[this.selectedLevel - 1];
+
+        const renderCard = (cardSymbols) => {
+            const positions = this.getPositions(cardSymbols.length);
+            const symbols = cardSymbols.map((sym, i) => {
+                const pos = positions[i];
+                const rot = level.rotate ? (Math.random() * 340 - 170) : 0;
+                let scale = 1;
+                if (level.varySize) {
+                    const [min, max] = level.sizeRange;
+                    scale = min + Math.random() * (max - min);
+                }
+                const fontSize = Math.round(32 * scale);
+                return `<button class="symbol-btn"
+                    onclick="game.handleSymbolClick(${sym.id})"
+                    style="left:${pos.x}%;top:${pos.y}%;font-size:${fontSize}px;transform:translate(-50%,-50%) rotate(${rot}deg);">
+                    ${sym.s}
+                </button>`;
+            }).join('');
+            return `<div class="dobble-card">${symbols}</div>`;
+        };
+
+        this.el.innerHTML = `
+            <div class="hud">
+                <div class="hud-item hud-score">
+                    <span class="hud-label">Punkte</span>
+                    <span class="hud-value" id="hud-score">${this.score}</span>
+                </div>
+                <div class="hud-item hud-round">
+                    <span class="hud-label">Runde</span>
+                    <span class="hud-value" id="hud-round">${this.currentRound} / ${this.totalRounds}</span>
+                </div>
+                ${this.showTimer ? `
+                <div class="hud-item hud-timer">
+                    <span class="hud-label">Zeit</span>
+                    <span class="hud-value" id="hud-timer">0.00s</span>
+                </div>` : ''}
+                <button class="abort-btn" onclick="game.abortGame()">✕ Abbrechen</button>
+            </div>
+            <div class="game-board">
+                ${renderCard(this.cards[0])}
+                ${renderCard(this.cards[1])}
+            </div>
+            <div id="msg" class="message-box"></div>
+        `;
+    }
+
+    abortGame() { this.stopTimer(); this.init(); }
+
+    endGame() {
+        this.stopTimer();
+        const stars = this.score >= this.totalRounds * 0.8 ? '🌟🌟🌟' :
+                       this.score >= this.totalRounds * 0.5 ? '⭐⭐' : '⭐';
+        const t = symbolSets[this.selectedTheme];
+        const l = levels[this.selectedLevel - 1];
+        this.el.innerHTML = `
+            <div class="end-screen">
+                <div style="font-size:3rem;margin-bottom:10px">${stars}</div>
+                <div class="end-score">${this.score}</div>
+                <div class="end-label">von ${this.totalRounds} Punkten · ${t.emoji} ${t.name} · ${l.emoji} ${l.name}</div>
+                ${this.showTimer ? `<div class="end-time">⏱ Gesamtzeit: ${this.totalGameTime.toFixed(2)}s</div>` : ''}
+                <div class="grid-2" style="max-width:400px;margin:0 auto;">
+                    <button class="option-btn" onclick="game.startGame(${this.showTimer})">🔄 Nochmal</button>
+                    <button class="option-btn" onclick="game.init()">🏠 Hauptmenü</button>
+                </div>
+            </div>
+        `;
+    }
+}
+
+const game = new DobbleGame();
+</script>
 </body>
 </html>
