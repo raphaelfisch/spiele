@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dobble</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f2f5;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        h1 {
+            color: #1a365d;
+            margin-bottom: 20px;
+        }
+
+        .level-selection {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .button {
+            padding: 15px 25px;
+            border: 2px solid #3182ce;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .button:hover {
+            background: #ebf8ff;
+            border-color: #4299e1;
+        }
+
+        .game-board {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            width: 300px;
+            height: 300px;
+            border: 2px solid #3182ce;
+            border-radius: 50%;
+            position: relative;
+            background: white;
+        }
+
+        .symbol {
+            position: absolute;
+            width: 90px;
+            height: 90px;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            background: white;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            transition: all 0.3s;
+        }
+
+        .symbol:hover {
+            background: #ebf8ff;
+        }
+
+        .symbol.selected {
+            background: #bef8fd;
+            border: 2px solid #3182ce;
+        }
+
+        .message {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .message.success {
+            background: #c6f6d5;
+            color: #276749;
+        }
+
+        .message.error {
+            background: #fed7d7;
+            color: #9b2c2c;
+        }
+
+        .back-button {
+            padding: 10px 20px;
+            background: none;
+            border: none;
+            color: #4a5568;
+            cursor: pointer;
+        }
+
+        .back-button:hover {
+            color: #1a202c;
+        }
+
+        .timer {
+            font-family: monospace;
+            font-size: 20px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="game" class="container">
+        <h1>Dobble</h1>
+        <div id="game-content"></div>
+    </div>
+
+    <script>
+        const symbols = [
+            { id: 1, symbol: '📚', name: 'Buch' },
+            { id: 2, symbol: '✏️', name: 'Stift' },
+            { id: 3, symbol: '🧮', name: 'Rechner' },
+            { id: 4, symbol: '🌍', name: 'Globus' },
+            { id: 5, symbol: '📏', name: 'Lineal' },
+            { id: 6, symbol: '🎨', name: 'Kunst' },
+            { id: 7, symbol: '🎵', name: 'Musik' },
+            { id: 8, symbol: '📝', name: 'Hausaufgaben' },
+            { id: 9, symbol: '🎓', name: 'Abschluss' },
+            { id: 10, symbol: '💻', name: 'Computer' },
+            { id: 11, symbol: '🎒', name: 'Rucksack' }
+        ];
+
+        const levels = [
+            { id: 1, name: 'Level 1', description: 'Gleiche Symbole auf beiden Karten' },
+            { id: 2, name: 'Level 2', description: 'Symbole ohne Animation' },
+            { id: 3, name: 'Level 3', description: 'Symbole mit unterschiedlicher Größe' }
+        ];
+
+        const roundOptions = [
+            { value: 5, label: '5 Runden' },
+            { value: 10, label: '10 Runden' },
+            { value: 20, label: '20 Runden' }
+        ];
+
+        class DobbleGame {
+            constructor() {
+                this.gameContent = document.getElementById('game-content');
+                this.selectedLevel = null;
+                this.totalRounds = null;
+                this.showTimer = false;
+                this.startTime = null;
+                this.roundStartTimes = [];
+                this.totalGameTime = 0;
+                this.timerInterval = null;
+                this.currentRound = 0;
+                this.score = 0;
+                this.cards = [];
+                
+                this.init();
+            }
+
+            init() {
+                this.showLevelSelection();
+            }
+
+            showLevelSelection() {
+                this.gameContent.innerHTML = `
+                    <div class="level-selection">
+                        ${levels.map(level => `
+                            <button class="button" onclick="game.selectLevel(${level.id})">
+                                <h2>${level.name}</h2>
+                                <p>${level.description}</p>
+                            </button>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            selectLevel(levelId) {
+                this.selectedLevel = levelId;
+                this.showRoundSelection();
+            }
+
+            showRoundSelection() {
+                this.gameContent.innerHTML = `
+                    <div class="level-selection">
+                        ${roundOptions.map(option => `
+                            <button class="button" onclick="game.selectRounds(${option.value})">
+                                ${option.label}
+                            </button>
+                        `).join('')}
+                    </div>
+                    <button class="back-button" onclick="game.showLevelSelection()">
+                        ← Zurück zur Level-Auswahl
+                    </button>
+                `;
+            }
+
+            selectRounds(rounds) {
+                this.totalRounds = rounds;
+                this.showTimerSelection();
+            }
+
+            showTimerSelection() {
+                this.gameContent.innerHTML = `
+                    <div class="level-selection">
+                        <button class="button" onclick="game.startGame(true)">
+                            Mit Timer
+                        </button>
+                        <button class="button" onclick="game.startGame(false)">
+                            Ohne Timer
+                        </button>
+                    </div>
+                    <button class="back-button" onclick="game.showRoundSelection()">
+                        ← Zurück zur Rundenauswahl
+                    </button>
+                `;
+            }
+
+            startGame(withTimer) {
+                this.showTimer = withTimer;
+                this.currentRound = 0;
+                this.score = 0;
+                this.totalGameTime = 0;
+                this.roundStartTimes = [];
+                if (withTimer) {
+                    this.startTime = Date.now();
+                    this.startTimer();
+                }
+                this.nextRound();
+            }
+
+            startTimer() {
+                if (this.timerInterval) {
+                    clearInterval(this.timerInterval);
+                }
+                this.roundStartTimes.push(Date.now());
+                this.timerInterval = setInterval(() => {
+                    const timerElement = document.getElementById('timer');
+                    if (timerElement) {
+                        const elapsed = (Date.now() - this.startTime) / 1000;
+                        timerElement.textContent = `Zeit: ${elapsed.toFixed(3)} Sekunden`;
+                    }
+                }, 16);
+            }
+
+            stopTimer() {
+                if (this.timerInterval) {
+                    clearInterval(this.timerInterval);
+                    this.timerInterval = null;
+                    
+                    // Berechne die Zeit für diese Runde
+                    const roundEndTime = Date.now();
+                    const roundStartTime = this.roundStartTimes[this.currentRound - 1];
+                    const roundTime = (roundEndTime - roundStartTime) / 1000;
+                    this.totalGameTime += roundTime;
+                }
+            }
+
+            generateCards() {
+                const card1Symbols = [...symbols]
+                    .sort(() => Math.random() - 0.5)
+                    .slice(0, 6);
+                
+                const matchingSymbol = card1Symbols[Math.floor(Math.random() * 6)];
+                const remainingSymbols = symbols.filter(s => !card1Symbols.includes(s));
+                
+                const card2Symbols = [
+                    matchingSymbol,
+                    ...remainingSymbols
+                        .sort(() => Math.random() - 0.5)
+                        .slice(0, 5)
+                ].sort(() => Math.random() - 0.5);
+
+                return [card1Symbols, card2Symbols];
+            }
+
+            getSymbolPosition(index, total = 6) {
+                const centerX = 50;
+                const centerY = 50;
+                const radius = 35;
+                
+                if (index === total - 1) {
+                    return { x: centerX, y: centerY };
+                }
+
+                const angle = (index * (2 * Math.PI / (total - 1))) + Math.random() * 0.5;
+                return {
+                    x: centerX + radius * Math.cos(angle),
+                    y: centerY + radius * Math.sin(angle),
+                    rotation: Math.random() * 360
+                };
+            }
+
+            nextRound() {
+                this.currentRound++;
+                this.cards = this.generateCards();
+                
+                // Wenn der Timer aktiviert ist, starte ihn neu
+                if (this.showTimer) {
+                    this.startTime = Date.now();
+                    this.startTimer();
+                }
+                
+                this.renderGame();
+            }
+
+            handleSymbolClick(symbolId) {
+                const matchingSymbol = this.findMatchingSymbol();
+                
+                if (symbolId === matchingSymbol.id) {
+                    // Stoppe den Timer
+                    this.stopTimer();
+                    
+                    this.score++;
+                    this.showMessage('Richtig! Das ist das übereinstimmende Symbol!', 'success');
+                    setTimeout(() => {
+                        if (this.currentRound < this.totalRounds) {
+                            this.nextRound();
+                        } else {
+                            this.endGame();
+                        }
+                    }, 1500);
+                } else {
+                    // Punkt sofort abziehen und nur Punktestand aktualisieren
+                    this.score--;
+                    document.querySelector('.game-info p').textContent = `Level ${this.selectedLevel} - Punkte: ${this.score} / Runde: ${this.currentRound} von ${this.totalRounds}`;
+                    this.showMessage('Leider falsch. Ein Punkt wird abgezogen!', 'error');
+                }
+            }
+
+            findMatchingSymbol() {
+                return this.cards[0].find(s1 => 
+                    this.cards[1].some(s2 => s2.id === s1.id)
+                );
+            }
+
+            showMessage(text, type) {
+                const messageElement = document.getElementById('message');
+                if (messageElement) {
+                    messageElement.textContent = text;
+                    messageElement.className = `message ${type}`;
+                }
+            }
+
+            renderGame() {
+                const positions1 = Array(6).fill(0).map((_, i) => this.getSymbolPosition(i));
+                const positions2 = Array(6).fill(0).map((_, i) => this.getSymbolPosition(i));
+
+                this.gameContent.innerHTML = `
+                    <div class="game-info">
+                        <p>Level ${this.selectedLevel} - Punkte: ${this.score} / Runde: ${this.currentRound} von ${this.totalRounds}</p>
+                        ${this.showTimer ? '<div id="timer" class="timer">Zeit: 0.000 Sekunden</div>' : ''}
+                    </div>
+                    <div class="game-board">
+                        ${[0, 1].map(cardIndex => `
+                            <div class="card">
+                                ${this.cards[cardIndex].map((symbol, symbolIndex) => {
+                                    const position = cardIndex === 0 ? positions1[symbolIndex] : positions2[symbolIndex];
+                                    
+                                    let symbolSize = 1;
+                                    
+                                    if (this.selectedLevel === 3) {
+                                        // Zufällige Symbolgröße nur für Level 3
+                                        symbolSize = 0.8 + Math.random() * 0.4;
+                                    }
+
+                                    return `
+                                        <button 
+                                            class="symbol"
+                                            onclick="game.handleSymbolClick(${symbol.id})"
+                                            style="
+                                                left: ${position.x}%;
+                                                top: ${position.y}%;
+                                                transform: translate(-50%, -50%) rotate(${position.rotation}deg) scale(${symbolSize});
+                                                transition: all 0.3s;
+                                            "
+                                        >
+                                            ${symbol.symbol}
+                                        </button>
+                                    `;
+                                }).join('')}
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div id="message" class="message"></div>
+                `;
+            }
+
+            endGame() {
+                this.stopTimer();
+                const finalTime = this.showTimer 
+                    ? `<p>Gesamtzeit: ${this.totalGameTime.toFixed(3)} Sekunden</p>` 
+                    : '';
+                
+                this.gameContent.innerHTML = `
+                    <h2>Spiel beendet!</h2>
+                    <p>Dein Endergebnis: ${this.score} Punkte</p>
+                    ${finalTime}
+                    <div style="margin-top: 20px;">
+                        <button class="button" onclick="game.startGame(${this.showTimer})">
+                            Gleichen Level neu starten
+                        </button>
+                        <button class="button" onclick="game.init()">
+                            Level auswählen
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        const game = new DobbleGame();
+    </script>
+</body>
+</html>
