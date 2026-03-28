@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kleine Lernspiele fürs Klassenzimmer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #fff;
+            --card: #f8f8fc;
+            --text: #1a1a2e;
+            --muted: #6b7280;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Nunito', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        header {
+            text-align: center;
+            padding: 60px 20px 40px;
+        }
+
+        .logo {
+            font-family: 'Fredoka One', cursive;
+            font-size: clamp(2.2rem, 6vw, 3.8rem);
+            background: linear-gradient(135deg, #ff6b6b, #f5a623, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+
+        .tagline {
+            color: var(--muted);
+            font-size: 1.05rem;
+            font-weight: 600;
+        }
+
+        .divider {
+            width: 60px;
+            height: 4px;
+            background: linear-gradient(90deg, #ff6b6b, #3b82f6);
+            border-radius: 99px;
+            margin: 24px auto 0;
+        }
+
+        main {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px 20px 60px;
+        }
+
+        .games-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 20px;
+        }
+
+        .game-card {
+            background: var(--card);
+            border-radius: 20px;
+            padding: 28px 24px;
+            text-decoration: none;
+            color: var(--text);
+            border: 2px solid transparent;
+            transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+            animation: fadeUp 0.4s ease both;
+            display: block;
+        }
+
+        .game-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.1);
+            border-color: var(--accent);
+        }
+
+        .game-card:active { transform: scale(0.98); }
+
+        .game-card .emoji {
+            font-size: 2.8rem;
+            margin-bottom: 14px;
+            display: block;
+        }
+
+        .game-card .name {
+            font-family: 'Fredoka One', cursive;
+            font-size: 1.4rem;
+            color: var(--accent);
+            margin-bottom: 6px;
+        }
+
+        .game-card .desc {
+            font-size: 0.85rem;
+            color: var(--muted);
+            font-weight: 600;
+            line-height: 1.5;
+        }
+
+        /* Per-card accent colours */
+        .card-dobble      { --accent: #3b82f6; border-color: rgba(59,130,246,0.15); background: rgba(59,130,246,0.04); }
+        .card-energie     { --accent: #2ecc71; border-color: rgba(46,204,113,0.15); background: rgba(46,204,113,0.04); }
+        .card-hose        { --accent: #ff6b6b; border-color: rgba(255,107,107,0.15); background: rgba(255,107,107,0.04); }
+        .card-jass        { --accent: #f5a623; border-color: rgba(245,166,35,0.15);  background: rgba(245,166,35,0.04); }
+        .card-tectonic    { --accent: #a855f7; border-color: rgba(168,85,247,0.15);  background: rgba(168,85,247,0.04); }
+
+        .card-dobble:hover   { box-shadow: 0 12px 40px rgba(59,130,246,0.15); }
+        .card-energie:hover  { box-shadow: 0 12px 40px rgba(46,204,113,0.15); }
+        .card-hose:hover     { box-shadow: 0 12px 40px rgba(255,107,107,0.15); }
+        .card-jass:hover     { box-shadow: 0 12px 40px rgba(245,166,35,0.15); }
+        .card-tectonic:hover { box-shadow: 0 12px 40px rgba(168,85,247,0.15); }
+
+        /* Stagger */
+        .game-card:nth-child(1) { animation-delay: 0.05s; }
+        .game-card:nth-child(2) { animation-delay: 0.10s; }
+        .game-card:nth-child(3) { animation-delay: 0.15s; }
+        .game-card:nth-child(4) { animation-delay: 0.20s; }
+        .game-card:nth-child(5) { animation-delay: 0.25s; }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        footer {
+            text-align: center;
+            padding: 20px;
+            color: var(--muted);
+            font-size: 0.8rem;
+            font-weight: 600;
+            border-top: 1px solid #f0f0f0;
+        }
+
+        footer a { color: var(--muted); text-decoration: none; }
+        footer a:hover { color: var(--text); }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo">🎮 Kleine Lernspiele</div>
+    <div class="tagline">fürs Klassenzimmer</div>
+    <div class="divider"></div>
+</header>
+
+<main>
+    <div class="games-grid">
+
+        <a href="dobble.html" class="game-card card-dobble">
+            <span class="emoji">🎯</span>
+            <div class="name">Dobble</div>
+            <div class="desc">Finde das gemeinsame Symbol auf zwei Karten — mit Themen, Levels und Timer.</div>
+        </a>
+
+        <a href="energiemanager.html" class="game-card card-energie">
+            <span class="emoji">⚡</span>
+            <div class="name">Energiemanager</div>
+            <div class="desc">Lerne Energie und Nachhaltigkeit spielerisch kennen.</div>
+        </a>
+
+        <a href="hose-abe.html" class="game-card card-hose">
+            <span class="emoji">🎲</span>
+            <div class="name">Hose abe</div>
+            <div class="desc">Ein lustiges Kartenspiel für den Unterricht.</div>
+        </a>
+
+        <a href="jasskarten.html" class="game-card card-jass">
+            <span class="emoji">🃏</span>
+            <div class="name">Jasskarten</div>
+            <div class="desc">Spiele mit Schweizer Jasskarten im Browser.</div>
+        </a>
+
+        <a href="tectonic.html" class="game-card card-tectonic">
+            <span class="emoji">🧩</span>
+            <div class="name">Tectonic</div>
+            <div class="desc">Das knifflige Zahlen-Puzzle — trainiert logisches Denken.</div>
+        </a>
+
+    </div>
+</main>
+
+<footer>
+    <p>© 2025 Raphael Fisch · <a href="LICENSE">Lizenz</a> · <a href="https://github.com/raphaelfisch/spiele">GitHub</a></p>
+</footer>
+
+</body>
+</html>
