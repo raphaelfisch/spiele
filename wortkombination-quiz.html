@@ -111,7 +111,12 @@ html,body{height:100%;font-family:'Barlow',sans-serif;background:var(--bg);color
 .ov-skip{background:none;border:1px solid var(--div);color:var(--dim);border-radius:8px;padding:9px 20px;font-family:'Barlow Condensed',sans-serif;font-size:0.8rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;width:100%;max-width:320px;}
 .ov-skip:hover{border-color:var(--dim);color:var(--text);}
 
-/* MULTIPLAYER */
+/* MULTIPLAYER — hide other side, own side fullscreen */
+#game-screen.mp-mode .phalf.a { border-right: none; }
+#game-screen.mp-mode .phalf.hide-a { display: none !important; }
+#game-screen.mp-mode .phalf.hide-b { display: none !important; }
+#game-screen.mp-mode .wgrid { font-size: clamp(1rem, 5vw, 2rem); }
+#game-screen.mp-mode .wb { font-size: clamp(1.1rem, 5vw, 2rem); }
 .mode-btn{flex:1;padding:14px;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:1rem;letter-spacing:2px;text-transform:uppercase;border:2px solid var(--div);border-radius:12px;background:var(--s2);color:var(--text);cursor:pointer;transition:all .2s;}
 .mode-btn:hover{border-color:var(--gold);color:var(--gold);}
 .mode-btn.active{background:var(--gold);color:var(--bg);border-color:var(--gold);}
@@ -149,7 +154,7 @@ html,body{height:100%;font-family:'Barlow',sans-serif;background:var(--bg);color
 <!-- SETUP -->
 <div class="screen active" id="setup-screen">
   <div class="setup-title">🎯 WORTKOMBI</div>
-  <div class="setup-sub">Zwei Seiten · Neun Wörter · Ein Kompositum</div>
+  <div class="setup-sub">Findet das Wort zusammen!</div>
 
   <div class="scard">
     <div class="scard-title">Spielmodus</div>
@@ -436,6 +441,30 @@ function setRole(role){
   document.getElementById('guest-code-input').style.display = role==='guest' ? '' : 'none';
 }
 
+function mpDisconnected(){
+  // Only show if game was active (not if user navigated away intentionally)
+  if(document.getElementById('game-screen').classList.contains('active')){
+    const overlay = document.getElementById('overlay');
+    overlay.classList.add('on');
+    document.getElementById('ov-ans').textContent='📡';
+    document.getElementById('ov-ans').style.color='var(--red)';
+    document.getElementById('ov-parts').textContent='';
+    document.getElementById('ov-status').textContent='Verbindung unterbrochen';
+    document.getElementById('ov-status').style.color='var(--red)';
+    document.getElementById('ov-solution').style.display='none';
+    document.getElementById('ov-btns').style.display='none';
+    document.getElementById('ov-correct-hint').style.display='none';
+    // Show back button
+    const d=document.createElement('button');
+    d.className='btn btn-s';
+    d.style.marginTop='12px';
+    d.textContent='← Zurück zum Start';
+    d.onclick=backToSetup;
+    overlay.appendChild(d);
+  }
+  conn=null;
+}
+
 function generateCode(){
   const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   return Array.from({length:4},()=>chars[Math.floor(Math.random()*chars.length)]).join('');
@@ -510,17 +539,13 @@ function mpLoadRound(){
   const aWords = sideSwapped ? wordSet.bWords : wordSet.aWords;
   const bWords = sideSwapped ? wordSet.aWords : wordSet.bWords;
 
-  // Each device only interacts with their own side, but both grids are built
   buildGrid('a', [...aWords].sort(()=>Math.random()-.5));
   buildGrid('b', [...bWords].sort(()=>Math.random()-.5));
 
-  // Hide the other side's grid buttons (can't click them)
+  // Hide the other player's half completely
   const otherSide = mySide==='a' ? 'b' : 'a';
-  document.querySelectorAll(`#grid${otherSide} .wb`).forEach(b=>{
-    b.style.pointerEvents='none'; b.style.opacity='0.4';
-  });
-  document.getElementById(`buzz${otherSide}`).style.opacity='0.4';
-  document.getElementById(`buzz${otherSide}`).style.pointerEvents='none';
+  document.querySelector('.phalf.a').classList.toggle('hide-a', mySide==='b');
+  document.querySelector('.phalf.b').classList.toggle('hide-b', mySide==='a');
 
   const qt=document.getElementById('qtext');
   qt.className='qtext loading';
@@ -554,6 +579,7 @@ function startGame(){
         conn.send(JSON.stringify({type:'hello', name}));
       });
       conn.on('data', mpHandle);
+      conn.on('close', ()=>mpDisconnected());
       conn.on('error', e=>{ document.getElementById('lobby-status').textContent='❌ Fehler: '+e; document.getElementById('lobby-status').className='mp-status err'; });
     });
     peer.on('error', e=>{ document.getElementById('lobby-status').textContent='❌ '+e.type+': Ungültiger Code?'; document.getElementById('lobby-status').className='mp-status err'; });
@@ -576,6 +602,7 @@ function startGame(){
         document.getElementById('lobby-status').textContent='✅ Verbunden! Spiel startet…';
         document.getElementById('lobby-status').className='mp-status ok';
       });
+      conn.on('close', ()=>mpDisconnected());
       conn.on('data', d=>{
         const msg = typeof d==='string'?JSON.parse(d):d;
         if(msg.type==='hello'){
@@ -643,12 +670,9 @@ function loadRound(){
   const bWords = sideSwapped ? wordSet.aWords : wordSet.bWords;
   buildGrid('a', [...aWords].sort(()=>Math.random()-.5));
   buildGrid('b', [...bWords].sort(()=>Math.random()-.5));
-  // Restore pointer events (may have been disabled in MP mode)
-  document.querySelectorAll('.wb').forEach(b=>{ b.style.pointerEvents=''; b.style.opacity=''; });
-  document.getElementById('buzza').style.pointerEvents='';
-  document.getElementById('buzza').style.opacity='';
-  document.getElementById('buzzb').style.pointerEvents='';
-  document.getElementById('buzzb').style.opacity='';
+  // Ensure both halves visible in solo
+  document.querySelector('.phalf.a').classList.remove('hide-a');
+  document.querySelector('.phalf.b').classList.remove('hide-b');
 
   const qt=document.getElementById('qtext');
   qt.className='qtext loading';
@@ -835,7 +859,13 @@ async function getQ(f){
   return f.frage||`${f.loesungA}${f.loesungB} — was bin ich?`;
 }
 
-// ── HELPERS ───────────────────────────────────────────────
+// ── UNLOAD WARNING ────────────────────────────────────────
+window.addEventListener('beforeunload', e => {
+  if(mpMode !== 'solo' && (peer || conn)) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
 function flashScreen(cls){
   const f=document.getElementById('flash');f.className=cls;
   setTimeout(()=>f.className='',500);
@@ -843,7 +873,8 @@ function flashScreen(cls){
 
 // ── END ───────────────────────────────────────────────────
 function endGame(){
-  if(mpMode!=='solo') mpSend({type:'end'});
+  // Only host sends end signal to avoid endless loop
+  if(mpMode!=='solo' && mySide==='a') mpSend({type:'end'});
   showScreen('result-screen');
   const total=shuffledFragen.length;
   const correct=scores.team||0;
