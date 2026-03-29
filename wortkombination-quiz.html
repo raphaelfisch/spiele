@@ -203,13 +203,19 @@ html,body{height:100%;font-family:'Barlow',sans-serif;background:var(--bg);color
 
 <!-- LOBBY (multiplayer waiting) -->
 <div class="screen" id="lobby-screen">
-  <div class="setup-title" style="margin-top:40px">🎯 WORTKOMBI</div>
-  <div class="setup-sub" id="lobby-sub">Verbinde...</div>
-  <div class="scard" style="max-width:360px;width:90%;margin-top:20px;text-align:center">
-    <div class="scard-title" id="lobby-label">Dein Code</div>
-    <div class="code-display" id="lobby-code">····</div>
-    <div class="mp-status" id="lobby-status">Warte auf Gegenspieler…</div>
-    <button class="btn btn-s" style="margin-top:16px;width:100%" onclick="backToSetup()">← Zurück</button>
+  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:24px;gap:20px;text-align:center">
+    <div class="setup-title">🎯 WORTKOMBI</div>
+    <div class="setup-sub" id="lobby-sub">Warte auf Mitspieler…</div>
+
+    <div class="scard" style="width:100%;max-width:360px">
+      <div class="scard-title" id="lobby-label">Code für Mitspieler</div>
+      <div class="code-display" id="lobby-code">····</div>
+      <div class="mp-status" id="lobby-status">
+        <span class="loader" style="margin-right:6px"></span>Warte auf Mitspieler…
+      </div>
+    </div>
+
+    <button class="btn btn-s" style="width:100%;max-width:360px;padding:13px" onclick="backToSetup()">← Abbrechen</button>
   </div>
 </div>
 
@@ -218,7 +224,10 @@ html,body{height:100%;font-family:'Barlow',sans-serif;background:var(--bg);color
   <div class="gtop">
     <div class="phname a" id="phna" style="font-size:0.9rem">A</div>
     <div class="rbadge" id="rbadge">R 1</div>
-    <div class="phname b" id="phnb" style="font-size:0.9rem;text-align:right">B</div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="phname b" id="phnb" style="font-size:0.9rem;text-align:right">B</div>
+      <button onclick="requestAbort()" style="background:none;border:1px solid var(--div);color:var(--dim);border-radius:6px;padding:3px 8px;font-size:0.7rem;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:1px;white-space:nowrap" title="Spiel abbrechen">✕ Stop</button>
+    </div>
   </div>
 
   <div class="qbar">
@@ -249,7 +258,19 @@ html,body{height:100%;font-family:'Barlow',sans-serif;background:var(--bg);color
       </div>
     </div>
 
-    <div class="overlay" id="overlay">
+    <!-- Abort confirm overlay -->
+    <div class="overlay" id="abort-overlay" style="background:rgba(15,14,23,.97)">
+      <div style="font-size:2rem;margin-bottom:8px">🛑</div>
+      <div class="ov-answer" id="abort-title" style="font-size:1.4rem">Spiel abbrechen?</div>
+      <div class="ov-parts" id="abort-sub" style="margin:8px 0 16px"></div>
+      <div style="display:flex;gap:10px;width:100%;max-width:320px" id="abort-btns">
+        <button class="btn btn-red" style="flex:1;padding:13px" onclick="confirmAbort()">✕ Ja, abbrechen</button>
+        <button class="btn btn-s" style="flex:1;padding:13px" onclick="cancelAbort()">← Weiterspielen</button>
+      </div>
+      <div id="abort-waiting" style="display:none;color:var(--dim);font-size:0.85rem;margin-top:8px">
+        <span class="loader" style="margin-right:6px"></span>Warte auf Antwort…
+      </div>
+    </div>
       <div style="font-size:0.7rem;letter-spacing:3px;text-transform:uppercase;color:var(--dim);margin-bottom:4px" id="ov-label">Eure Antwort</div>
       <div class="ov-answer" id="ov-ans">—</div>
       <div class="ov-parts" id="ov-parts"></div>
@@ -410,6 +431,7 @@ let wordSet=null;
 let players={a:'A',b:'B'};
 let scores={team:0};
 let sideSwapped=false;
+let shuffledAWords=[], shuffledBWords=[];
 let shuffledFragen=[], currentRound=0;
 let selA=null, selB=null, buzzed=null;
 let roundActive=false, qLoaded=false;
@@ -477,10 +499,11 @@ function mpSend(msg){
 function mpHandle(msg){
   const d = typeof msg === 'string' ? JSON.parse(msg) : msg;
   if(d.type==='start'){
-    // Guest receives game config from host
     wordSet = d.wordSet;
     shuffledFragen = d.fragen;
     sideSwapped = d.sideSwapped;
+    shuffledAWords = d.shuffledAWords;
+    shuffledBWords = d.shuffledBWords;
     players = d.players;
     currentRound = 0;
     scores = {team:0};
@@ -507,8 +530,9 @@ function mpHandle(msg){
     document.querySelectorAll(`#grid${otherSide} .wb`).forEach(b=>b.disabled=true);
     if(buzzedA && buzzedB){ buzzed=true; roundActive=false; resolve(); }
     else {
-      const waiting = buzzedA ? players.b : players.a;
-      document.getElementById('qtext').innerHTML=`⏳ <em style="color:var(--dim)">${waiting} wählt noch…</em>`;
+      // The one still choosing is always the player on this device (mySide)
+      const myName = mySide==='a' ? players.a : players.b;
+      document.getElementById('qtext').innerHTML=`⏳ <em style="color:var(--dim)">${myName} wählt noch…</em>`;
     }
   } else if(d.type==='resolve'){
     // Host tells guest to show overlay
@@ -517,6 +541,14 @@ function mpHandle(msg){
     resolve();
   } else if(d.type==='next'){
     currentRound++; mpLoadRound();
+  } else if(d.type==='abort-request'){
+    // Partner wants to abort — show confirm
+    const requester = mySide==='a' ? players.b : players.a;
+    showAbortOverlay(`${requester} möchte das Spiel abbrechen.`, true);
+  } else if(d.type==='abort-confirm'){
+    backToSetup();
+  } else if(d.type==='abort-cancel'){
+    hideAbortOverlay();
   } else if(d.type==='end'){
     endGame();
   }
@@ -536,14 +568,10 @@ function mpLoadRound(){
     b.disabled=true; b.className='buzzb';
   });
 
-  const aWords = sideSwapped ? wordSet.bWords : wordSet.aWords;
-  const bWords = sideSwapped ? wordSet.aWords : wordSet.bWords;
-
-  buildGrid('a', [...aWords].sort(()=>Math.random()-.5));
-  buildGrid('b', [...bWords].sort(()=>Math.random()-.5));
+  buildGrid('a', shuffledAWords);
+  buildGrid('b', shuffledBWords);
 
   // Hide the other player's half completely
-  const otherSide = mySide==='a' ? 'b' : 'a';
   document.querySelector('.phalf.a').classList.toggle('hide-a', mySide==='b');
   document.querySelector('.phalf.b').classList.toggle('hide-b', mySide==='a');
 
@@ -593,7 +621,7 @@ function startGame(){
     showScreen('lobby-screen');
     document.getElementById('lobby-sub').textContent='Als Host — teile diesen Code:';
     document.getElementById('lobby-code').textContent=code;
-    document.getElementById('lobby-status').textContent='Warte auf Gegenspieler…';
+    document.getElementById('lobby-status').innerHTML='<span class="loader" style="margin-right:6px"></span>Warte auf Mitspieler…';
     peer = new Peer('wortkombi-'+code);
     peer.on('open',()=>{});
     peer.on('connection', c=>{
@@ -611,9 +639,10 @@ function startGame(){
           players={a:name, b:msg.name};
           shuffledFragen=[...wordSet.fragen].sort(()=>Math.random()-.5);
           sideSwapped=Math.random()<0.5;
+          shuffledAWords=[...(sideSwapped ? wordSet.bWords : wordSet.aWords)].sort(()=>Math.random()-.5);
+          shuffledBWords=[...(sideSwapped ? wordSet.aWords : wordSet.bWords)].sort(()=>Math.random()-.5);
           currentRound=0; scores={team:0};
-          // Send config to guest
-          mpSend({type:'start', wordSet, fragen:shuffledFragen, sideSwapped, players});
+          mpSend({type:'start', wordSet, fragen:shuffledFragen, sideSwapped, shuffledAWords, shuffledBWords, players});
           // Start on host
           setTimeout(()=>{
             showScreen('game-screen');
@@ -636,6 +665,9 @@ function startGame(){
   currentRound=0;
   scores={team:0};
   sideSwapped = Math.random() < 0.5;
+  // Shuffle word order once for the whole session
+  shuffledAWords = [...(sideSwapped ? wordSet.bWords : wordSet.aWords)].sort(()=>Math.random()-.5);
+  shuffledBWords = [...(sideSwapped ? wordSet.aWords : wordSet.bWords)].sort(()=>Math.random()-.5);
   document.getElementById('game-screen').classList.remove('mp-mode');
   showScreen('game-screen');
   updateScores();
@@ -666,10 +698,8 @@ function loadRound(){
     b.disabled=true; b.className='buzzb';
   });
 
-  const aWords = sideSwapped ? wordSet.bWords : wordSet.aWords;
-  const bWords = sideSwapped ? wordSet.aWords : wordSet.bWords;
-  buildGrid('a', [...aWords].sort(()=>Math.random()-.5));
-  buildGrid('b', [...bWords].sort(()=>Math.random()-.5));
+  buildGrid('a', shuffledAWords);
+  buildGrid('b', shuffledBWords);
   // Ensure both halves visible in solo
   document.querySelector('.phalf.a').classList.remove('hide-a');
   document.querySelector('.phalf.b').classList.remove('hide-b');
@@ -758,9 +788,10 @@ function buzz(side){
     return;
   }
 
-  // Only one has buzzed — show waiting hint
-  const waiting = buzzedA ? players.b : players.a;
-  document.getElementById('qtext').innerHTML = `⏳ <em style="color:var(--dim)">${waiting} wählt noch…</em>`;
+  // Only one has buzzed — show who is still choosing
+  // In MP: always "Du wählst noch" on own device, partner's name on other device
+  const stillChoosing = buzzedA ? players.b : players.a;
+  document.getElementById('qtext').innerHTML = `⏳ <em style="color:var(--dim)">${stillChoosing} wählt noch…</em>`;
 }
 
 function resolve(){
@@ -857,6 +888,41 @@ function skipRound(){
 // ── QUESTION ──────────────────────────────────────────────
 async function getQ(f){
   return f.frage||`${f.loesungA}${f.loesungB} — was bin ich?`;
+}
+
+// ── ABORT ─────────────────────────────────────────────────
+function requestAbort(){
+  if(mpMode!=='solo'){
+    // In MP: ask partner
+    showAbortOverlay('Mitspieler wird gefragt…', false);
+    mpSend({type:'abort-request'});
+  } else {
+    // In solo: just confirm locally
+    showAbortOverlay('Spiel wirklich abbrechen?', true);
+  }
+}
+
+function showAbortOverlay(msg, showBtns){
+  const ov = document.getElementById('abort-overlay');
+  document.getElementById('abort-sub').textContent = msg;
+  document.getElementById('abort-btns').style.display = showBtns ? 'flex' : 'none';
+  document.getElementById('abort-waiting').style.display = showBtns ? 'none' : 'block';
+  ov.classList.add('on');
+}
+
+function hideAbortOverlay(){
+  document.getElementById('abort-overlay').classList.remove('on');
+}
+
+function confirmAbort(){
+  if(mpMode!=='solo') mpSend({type:'abort-confirm'});
+  hideAbortOverlay();
+  backToSetup();
+}
+
+function cancelAbort(){
+  if(mpMode!=='solo') mpSend({type:'abort-cancel'});
+  hideAbortOverlay();
 }
 
 // ── UNLOAD WARNING ────────────────────────────────────────
