@@ -53,6 +53,7 @@ html,body{height:100%;font-family:'Barlow',sans-serif;background:var(--bg);color
 
 /* GAME */
 #game-screen{flex-direction:column;}
+#lobby-screen{flex-direction:column;align-items:center;justify-content:center;}
 .gtop{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;background:var(--surface);border-bottom:1px solid var(--div);flex-shrink:0;gap:10px;}
 .gtitle{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:0.8rem;letter-spacing:3px;color:var(--gold);}
 .scores{display:flex;align-items:center;gap:10px;font-family:'Barlow Condensed',sans-serif;}
@@ -162,17 +163,17 @@ html,body{height:100%;font-family:'Barlow',sans-serif;background:var(--bg);color
       <button class="mode-btn active" id="btn-host" onclick="setRole('host')">🏠 Host (lädt JSON)</button>
       <button class="mode-btn" id="btn-guest" onclick="setRole('guest')">🔗 Gast (tritt bei)</button>
     </div>
-    <div id="guest-code-input" style="display:none;margin-top:14px">
-      <div class="scard-title">Code eingeben</div>
-      <input class="code-input" type="text" id="join-code" placeholder="XXXX" maxlength="4" oninput="this.value=this.value.toUpperCase()">
-    </div>
     <div style="margin-top:14px">
       <div class="scard-title">Dein Name</div>
       <input class="ni" type="text" id="name-self" placeholder="Dein Name" maxlength="14" style="width:100%;margin-top:4px">
     </div>
+    <div id="guest-code-input" style="display:none;margin-top:14px">
+      <div class="scard-title">Code eingeben</div>
+      <input class="code-input" type="text" id="join-code" placeholder="XXXX" maxlength="4" oninput="this.value=this.value.toUpperCase()">
+    </div>
   </div>
 
-  <div class="scard" style="border-color:rgba(245,197,24,.2)">
+  <div class="scard" id="upload-card" style="border-color:rgba(245,197,24,.2)">
     <div class="scard-title">📂 Fragen laden (JSON-Datei)</div>
     <label id="upload-label" style="display:flex;align-items:center;gap:12px;background:var(--bg);border:2px dashed rgba(245,197,24,.3);border-radius:10px;padding:16px;cursor:pointer;transition:border-color .2s,background .2s">
       <span style="font-size:1.8rem">📁</span>
@@ -182,7 +183,7 @@ html,body{height:100%;font-family:'Barlow',sans-serif;background:var(--bg);color
       </div>
       <input type="file" id="file-input" accept=".json" style="display:none" onchange="loadJSON(this)">
     </label>
-    <div style="margin-top:12px">
+    <div style="margin-top:12px;text-align:center">
       <button class="btn btn-s" style="color:var(--gold);font-size:0.8rem" onclick="showPrompt()">📋 KI-Prompt anzeigen</button>
     </div>
   </div>
@@ -195,7 +196,7 @@ html,body{height:100%;font-family:'Barlow',sans-serif;background:var(--bg);color
 
   <div style="width:100%;max-width:640px">
     <button class="btn btn-gold btn-full" onclick="startGame()">Spiel starten ▶</button>
-    <div style="text-align:center;margin-top:12px">
+    <div id="test-mode-btn" style="text-align:center;margin-top:12px">
       <button onclick="setMode('solo');startGame()" style="background:none;border:none;color:var(--dim);font-size:0.78rem;cursor:pointer;text-decoration:underline;font-family:'Barlow',sans-serif">🖥 Testmodus (ein Gerät, beide Seiten sichtbar)</button>
     </div>
   </div>
@@ -203,18 +204,16 @@ html,body{height:100%;font-family:'Barlow',sans-serif;background:var(--bg);color
 
 <!-- LOBBY (multiplayer waiting) -->
 <div class="screen" id="lobby-screen">
-  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:24px;gap:20px;text-align:center">
+  <div style="display:flex;flex-direction:column;align-items:center;gap:20px;text-align:center;padding:24px;width:100%">
     <div class="setup-title">🎯 WORTKOMBI</div>
     <div class="setup-sub" id="lobby-sub">Warte auf Mitspieler…</div>
-
-    <div class="scard" style="width:100%;max-width:360px">
+    <div class="scard" style="max-width:360px;width:100%;text-align:center">
       <div class="scard-title" id="lobby-label">Code für Mitspieler</div>
       <div class="code-display" id="lobby-code">····</div>
       <div class="mp-status" id="lobby-status">
         <span class="loader" style="margin-right:6px"></span>Warte auf Mitspieler…
       </div>
     </div>
-
     <button class="btn btn-s" style="width:100%;max-width:360px;padding:13px" onclick="backToSetup()">← Abbrechen</button>
   </div>
 </div>
@@ -223,24 +222,17 @@ html,body{height:100%;font-family:'Barlow',sans-serif;background:var(--bg);color
 <div class="screen" id="game-screen">
   <div class="gtop">
     <div class="phname a" id="phna" style="font-size:0.9rem">A</div>
-    <div class="rbadge" id="rbadge">R 1</div>
-    <div style="display:flex;align-items:center;gap:8px">
-      <div class="phname b" id="phnb" style="font-size:0.9rem;text-align:right">B</div>
-      <button onclick="requestAbort()" style="background:none;border:1px solid var(--div);color:var(--dim);border-radius:6px;padding:3px 8px;font-size:0.7rem;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:1px;white-space:nowrap" title="Spiel abbrechen">✕ Stop</button>
-    </div>
+    <button onclick="requestAbort()" style="background:none;border:1px solid var(--div);color:var(--dim);border-radius:6px;padding:3px 10px;font-size:0.72rem;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:1px;position:relative;z-index:30">✕ Stop</button>
+    <div class="phname b" id="phnb" style="font-size:0.9rem;text-align:right">B</div>
   </div>
 
   <div class="qbar">
-    <div class="qlabel">Frage</div>
+    <div class="qlabel" id="rbadge">Frage 1/1</div>
     <div class="qtext loading" id="qtext"><span class="loader"></span> Frage wird geladen…</div>
   </div>
 
   <div class="play-area">
     <div class="phalf a">
-      <div class="phhead">
-        <div class="phname a" id="phna">A</div>
-        <div class="phsel a" id="sela">—</div>
-      </div>
       <div class="wgrid" id="grida"></div>
       <div class="buzzwrap">
         <button class="buzzb" id="buzza" onclick="buzz('a')" disabled>⚡ BUZZ</button>
@@ -248,10 +240,6 @@ html,body{height:100%;font-family:'Barlow',sans-serif;background:var(--bg);color
     </div>
 
     <div class="phalf b">
-      <div class="phhead">
-        <div class="phname b" id="phnb">B</div>
-        <div class="phsel b" id="selb">—</div>
-      </div>
       <div class="wgrid" id="gridb"></div>
       <div class="buzzwrap">
         <button class="buzzb" id="buzzb" onclick="buzz('b')" disabled>⚡ BUZZ</button>
@@ -259,9 +247,9 @@ html,body{height:100%;font-family:'Barlow',sans-serif;background:var(--bg);color
     </div>
 
     <!-- Abort confirm overlay -->
-    <div class="overlay" id="abort-overlay" style="background:rgba(15,14,23,.97)">
+    <div class="overlay" id="abort-overlay" style="background:rgba(15,14,23,.97);display:none;z-index:25">
       <div style="font-size:2rem;margin-bottom:8px">🛑</div>
-      <div class="ov-answer" id="abort-title" style="font-size:1.4rem">Spiel abbrechen?</div>
+      <div class="ov-answer" style="font-size:1.4rem">Spiel abbrechen?</div>
       <div class="ov-parts" id="abort-sub" style="margin:8px 0 16px"></div>
       <div style="display:flex;gap:10px;width:100%;max-width:320px" id="abort-btns">
         <button class="btn btn-red" style="flex:1;padding:13px" onclick="confirmAbort()">✕ Ja, abbrechen</button>
@@ -271,6 +259,8 @@ html,body{height:100%;font-family:'Barlow',sans-serif;background:var(--bg);color
         <span class="loader" style="margin-right:6px"></span>Warte auf Antwort…
       </div>
     </div>
+
+    <div class="overlay" id="overlay">
       <div style="font-size:0.7rem;letter-spacing:3px;text-transform:uppercase;color:var(--dim);margin-bottom:4px" id="ov-label">Eure Antwort</div>
       <div class="ov-answer" id="ov-ans">—</div>
       <div class="ov-parts" id="ov-parts"></div>
@@ -312,12 +302,14 @@ SPIELPRINZIP:
 - Zusammengesetzt ergibt das Wortpaar die Antwort auf die Frage
 - Beispiel: Frage "Welches gehörnte Wildtier klettert über Felswände?" → A wählt STEIN, B wählt BOCK → STEINBOCK ✓
 
-SCHLÜSSELPRINZIP — THEMATISCHE KOHÄRENZ:
-Alle 18 Wörter sollen zum gleichen Themenfeld gehören. Dadurch ist die Auswahl schwieriger — die Spieler müssen wirklich überlegen, welches ihrer Wörter passt.
+SCHLÜSSELPRINZIP — THEMATISCHE KOHÄRENZ & ZUFÄLLIGE AUFTEILUNG:
+Alle 18 Wörter sollen zum gleichen Themenfeld gehören. Im Spiel werden die 18 Wörter beim Start ZUFÄLLIG auf die zwei Spieler:innen aufgeteilt — jede:r bekommt 9 Wörter, die eine Mischung aus Anfängen und Enden sind. Die Aufteilung in aWorte/bWorte im JSON definiert nur welche Wörter zusammen ein Kompositum ergeben, NICHT wer welche Wörter bekommt.
 Gutes Beispiel (Thema: Schweizer Alpen):
-  A: JUNG, EDEL, STEIN, WEISS, GOLD, ALPEN, ALT, BERG, GRAS
-  B: FRAU, WEISS, BOCK, HORN, BERG, GLÜHEN, MANN, STEIGER, HÜPFER
-  → JUNGFRAU, EDELWEISS, STEINBOCK, WEISSHORN, GOLDBERG, ALPENGLÜHEN, ALTMANN, BERGSTEIGER, GRASHÜPFER
+  aWorte: JUNG, EDEL, STEIN, WEISS, GOLD, ALPEN, ALT, BERG, GRAS
+  bWorte: FRAU, WEISS, BOCK, HORN, ADER, GLÜHEN, MANN, STEIGER, HÜPFER
+  → Lösungen: JUNGFRAU, EDELWEISS, STEINBOCK, WEISSHORN, GOLDADER, ALPENGLÜHEN, ALTMANN, BERGSTEIGER, GRASHÜPFER
+  Im Spiel könnte Spieler:in A z.B. JUNG, FRAU, STEIN, HORN, GOLD, MANN, ALT, STEIGER, GRAS bekommen
+  und Spieler:in B: EDEL, WEISS, BOCK, WEISS, ALPEN, ADER, GLÜHEN, BERG, HÜPFER
 
 FORMAT (exakt so ausgeben, als valides JSON):
 {
@@ -431,7 +423,6 @@ let wordSet=null;
 let players={a:'A',b:'B'};
 let scores={team:0};
 let sideSwapped=false;
-let shuffledAWords=[], shuffledBWords=[];
 let shuffledFragen=[], currentRound=0;
 let selA=null, selB=null, buzzed=null;
 let roundActive=false, qLoaded=false;
@@ -461,6 +452,9 @@ function setRole(role){
   document.getElementById('btn-host').classList.toggle('active', role==='host');
   document.getElementById('btn-guest').classList.toggle('active', role==='guest');
   document.getElementById('guest-code-input').style.display = role==='guest' ? '' : 'none';
+  document.getElementById('upload-card').style.display = role==='guest' ? 'none' : '';
+  document.getElementById('prompt-card').style.display = 'none';
+  document.getElementById('test-mode-btn').style.display = role==='guest' ? 'none' : '';
 }
 
 function mpDisconnected(){
@@ -474,15 +468,9 @@ function mpDisconnected(){
     document.getElementById('ov-status').textContent='Verbindung unterbrochen';
     document.getElementById('ov-status').style.color='var(--red)';
     document.getElementById('ov-solution').style.display='none';
-    document.getElementById('ov-btns').style.display='none';
+    document.getElementById('ov-btns').style.display='flex';
+    document.getElementById('ov-btns').innerHTML='<button class="btn btn-s" style="width:100%" onclick="backToSetup()">← Zurück zum Start</button>';
     document.getElementById('ov-correct-hint').style.display='none';
-    // Show back button
-    const d=document.createElement('button');
-    d.className='btn btn-s';
-    d.style.marginTop='12px';
-    d.textContent='← Zurück zum Start';
-    d.onclick=backToSetup;
-    overlay.appendChild(d);
   }
   conn=null;
 }
@@ -501,13 +489,12 @@ function mpHandle(msg){
   if(d.type==='start'){
     wordSet = d.wordSet;
     shuffledFragen = d.fragen;
-    sideSwapped = d.sideSwapped;
     shuffledAWords = d.shuffledAWords;
     shuffledBWords = d.shuffledBWords;
     players = d.players;
     currentRound = 0;
     scores = {team:0};
-    mySide = 'b'; // guest is always B
+    mySide = 'b';
     showScreen('game-screen');
     document.getElementById('game-screen').classList.add('mp-mode');
     updateScores();
@@ -530,7 +517,6 @@ function mpHandle(msg){
     document.querySelectorAll(`#grid${otherSide} .wb`).forEach(b=>b.disabled=true);
     if(buzzedA && buzzedB){ buzzed=true; roundActive=false; resolve(); }
     else {
-      // The one still choosing is always the player on this device (mySide)
       const myName = mySide==='a' ? players.a : players.b;
       document.getElementById('qtext').innerHTML=`⏳ <em style="color:var(--dim)">${myName} wählt noch…</em>`;
     }
@@ -539,13 +525,16 @@ function mpHandle(msg){
     selA = d.selA; selB = d.selB;
     buzzed=true; roundActive=false;
     resolve();
+  } else if(d.type==='next-ready'){
+    if(mySide==='a') nextReadyB=true; else nextReadyA=true;
+    if(nextReadyA && nextReadyB) doNextRound();
   } else if(d.type==='next'){
     currentRound++; mpLoadRound();
   } else if(d.type==='abort-request'){
-    // Partner wants to abort — show confirm
     const requester = mySide==='a' ? players.b : players.a;
     showAbortOverlay(`${requester} möchte das Spiel abbrechen.`, true);
   } else if(d.type==='abort-confirm'){
+    hideAbortOverlay();
     backToSetup();
   } else if(d.type==='abort-cancel'){
     hideAbortOverlay();
@@ -557,9 +546,9 @@ function mpHandle(msg){
 function mpLoadRound(){
   if(currentRound>=shuffledFragen.length){ endGame(); return; }
   const f=shuffledFragen[currentRound];
-  selA=null;selB=null;buzzed=null;buzzedA=false;buzzedB=false;roundActive=false;qLoaded=false;
+  selA=null;selB=null;buzzed=null;buzzedA=false;buzzedB=false;nextReadyA=false;nextReadyB=false;roundActive=false;qLoaded=false;
 
-  document.getElementById('rbadge').textContent=`F ${currentRound+1}/${shuffledFragen.length}`;
+  document.getElementById('rbadge').textContent=`Frage ${currentRound+1} / ${shuffledFragen.length}`;
   document.getElementById('overlay').classList.remove('on');
   setSelEl('a',null); setSelEl('b',null);
 
@@ -587,17 +576,28 @@ function mpLoadRound(){
 }
 
 // ── GAME ──────────────────────────────────────────────────
+function splitWords(){
+  // Shuffle each group internally
+  const aShuffled = [...wordSet.aWords].sort(()=>Math.random()-.5);
+  const bShuffled = [...wordSet.bWords].sort(()=>Math.random()-.5);
+  // Randomly assign which group goes to which side
+  if(Math.random()<0.5){
+    return {sideA: aShuffled, sideB: bShuffled};
+  } else {
+    return {sideA: bShuffled, sideB: aShuffled};
+  }
+}
+
 function startGame(){
   if(mpMode==='multi' && mpRole==='guest'){
-    // Guest: connect to host
     const code = document.getElementById('join-code').value.trim().toUpperCase();
     if(code.length!==4){ alert('Bitte einen 4-stelligen Code eingeben.'); return; }
-    const name = document.getElementById('name-self').value.trim()||'Spieler B';
+    const name = document.getElementById('name-self').value.trim()||'Spieler:in B';
     showScreen('lobby-screen');
     document.getElementById('lobby-label').textContent='Verbinde mit';
     document.getElementById('lobby-code').textContent=code;
     document.getElementById('lobby-sub').textContent='Als Gast beitreten';
-    document.getElementById('lobby-status').textContent='Verbinde…';
+    document.getElementById('lobby-status').innerHTML='<span class="loader" style="margin-right:6px"></span>Verbinde…';
     peer = new Peer();
     peer.on('open', ()=>{
       conn = peer.connect('wortkombi-'+code);
@@ -617,11 +617,11 @@ function startGame(){
   if(mpMode==='multi' && mpRole==='host'){
     if(!wordSet){ alert('Bitte erst eine JSON-Datei laden!'); return; }
     const code = generateCode();
-    const name = document.getElementById('name-self').value.trim()||'Spieler A';
+    const name = document.getElementById('name-self').value.trim()||'Spieler:in A';
     showScreen('lobby-screen');
     document.getElementById('lobby-sub').textContent='Als Host — teile diesen Code:';
     document.getElementById('lobby-code').textContent=code;
-    document.getElementById('lobby-status').innerHTML='<span class="loader" style="margin-right:6px"></span>Warte auf Mitspieler…';
+    document.getElementById('lobby-status').innerHTML='<span class="loader" style="margin-right:6px"></span>Warte auf Mitspieler:in…';
     peer = new Peer('wortkombi-'+code);
     peer.on('open',()=>{});
     peer.on('connection', c=>{
@@ -634,16 +634,14 @@ function startGame(){
       conn.on('data', d=>{
         const msg = typeof d==='string'?JSON.parse(d):d;
         if(msg.type==='hello'){
-          // Start game
           mySide='a';
           players={a:name, b:msg.name};
           shuffledFragen=[...wordSet.fragen].sort(()=>Math.random()-.5);
-          sideSwapped=Math.random()<0.5;
-          shuffledAWords=[...(sideSwapped ? wordSet.bWords : wordSet.aWords)].sort(()=>Math.random()-.5);
-          shuffledBWords=[...(sideSwapped ? wordSet.aWords : wordSet.bWords)].sort(()=>Math.random()-.5);
+          const {sideA, sideB} = splitWords();
+          shuffledAWords = sideA;
+          shuffledBWords = sideB;
           currentRound=0; scores={team:0};
-          mpSend({type:'start', wordSet, fragen:shuffledFragen, sideSwapped, shuffledAWords, shuffledBWords, players});
-          // Start on host
+          mpSend({type:'start', wordSet, fragen:shuffledFragen, shuffledAWords, shuffledBWords, players});
           setTimeout(()=>{
             showScreen('game-screen');
             document.getElementById('game-screen').classList.add('mp-mode');
@@ -659,15 +657,14 @@ function startGame(){
 
   // SOLO / TEST mode
   if(!wordSet){alert('Bitte erst eine JSON-Datei laden!');return;}
-  players.a = 'Spieler A';
-  players.b = 'Spieler B';
+  players.a = 'Spieler:in A';
+  players.b = 'Spieler:in B';
   shuffledFragen=[...wordSet.fragen].sort(()=>Math.random()-.5);
+  const {sideA, sideB} = splitWords();
+  shuffledAWords = sideA;
+  shuffledBWords = sideB;
   currentRound=0;
   scores={team:0};
-  sideSwapped = Math.random() < 0.5;
-  // Shuffle word order once for the whole session
-  shuffledAWords = [...(sideSwapped ? wordSet.bWords : wordSet.aWords)].sort(()=>Math.random()-.5);
-  shuffledBWords = [...(sideSwapped ? wordSet.aWords : wordSet.bWords)].sort(()=>Math.random()-.5);
   document.getElementById('game-screen').classList.remove('mp-mode');
   showScreen('game-screen');
   updateScores();
@@ -680,6 +677,7 @@ function showScreen(id){
 }
 
 function updateScores(){
+  // Player names shown in gtop
   document.getElementById('phna').textContent=players.a;
   document.getElementById('phnb').textContent=players.b;
 }
@@ -687,9 +685,9 @@ function updateScores(){
 function loadRound(){
   if(currentRound>=shuffledFragen.length){endGame();return;}
   const f=shuffledFragen[currentRound];
-  selA=null;selB=null;buzzed=null;buzzedA=false;buzzedB=false;roundActive=false;qLoaded=false;
+  selA=null;selB=null;buzzed=null;buzzedA=false;buzzedB=false;nextReadyA=false;nextReadyB=false;roundActive=false;qLoaded=false;
 
-  document.getElementById('rbadge').textContent=`F ${currentRound+1}/${shuffledFragen.length}`;
+  document.getElementById('rbadge').textContent=`Frage ${currentRound+1} / ${shuffledFragen.length}`;
   document.getElementById('overlay').classList.remove('on');
 
   setSelEl('a',null); setSelEl('b',null);
@@ -726,9 +724,7 @@ function buildGrid(side,words){
 }
 
 function setSelEl(side,word){
-  const el=document.getElementById(`sel${side}`);
-  if(!word){el.textContent='—';el.className=`phsel ${side}`;}
-  else{el.textContent=word;el.className=`phsel ${side} chosen`;}
+  // Selection display removed from UI — no-op
 }
 
 function pick(side,word){
@@ -788,10 +784,9 @@ function buzz(side){
     return;
   }
 
-  // Only one has buzzed — show who is still choosing
-  // In MP: always "Du wählst noch" on own device, partner's name on other device
-  const stillChoosing = buzzedA ? players.b : players.a;
-  document.getElementById('qtext').innerHTML = `⏳ <em style="color:var(--dim)">${stillChoosing} wählt noch…</em>`;
+  // Only one has buzzed — show waiting hint
+  const waiting = buzzedA ? players.b : players.a;
+  document.getElementById('qtext').innerHTML = `⏳ <em style="color:var(--dim)">${waiting} wählt noch…</em>`;
 }
 
 function resolve(){
@@ -802,20 +797,15 @@ function resolve(){
   qt.className='qtext';
   qt.textContent=f.frage;
 
-  const correctA = sideSwapped ? f.loesungB : f.loesungA;
-  const correctB = sideSwapped ? f.loesungA : f.loesungB;
+  // Figure out which solution word landed on which side
+  const correctA = shuffledAWords.includes(f.loesungA) ? f.loesungA : f.loesungB;
+  const correctB = shuffledBWords.includes(f.loesungB) ? f.loesungB : f.loesungA;
   const correct = selA===correctA && selB===correctB;
-  // Correct answer: stored in f.loesung if present, otherwise try A+B
   const correctAnswer = f.loesung || (f.loesungA+f.loesungB);
   // What the players produced — show as "A-Wort + B-Wort = Zusammensetzung"
   // but the combined word order must match the correct answer
   const playerWord = selA && selB ? (correctAnswer.startsWith(selB) ? selB+selA : selA+selB) : '?';
   const playerParts = `${selA||'?'} + ${selB||'?'}`;
-
-  // Reveal selections
-  const elA=document.getElementById('sela'), elB=document.getElementById('selb');
-  elA.textContent=selA||'?'; elA.className='phsel a chosen revealed';
-  elB.textContent=selB||'?'; elB.className='phsel b chosen revealed';
 
   // Fill overlay
   document.getElementById('ov-ans').textContent=playerParts;
@@ -832,6 +822,7 @@ function resolve(){
     os.textContent='✅ Richtig!';
     os.style.color='var(--green)';
     sol.style.display='none';
+    document.getElementById('ov-btns').innerHTML='<button class="btn btn-green" onclick="nextRound()">▶ Nächste Frage</button>';
     document.getElementById('ov-btns').style.display='none';
     document.getElementById('ov-correct-hint').style.display='none';
     scores.team++;
@@ -844,6 +835,7 @@ function resolve(){
     os.style.color='var(--red)';
     sol.style.display='block';
     document.getElementById('ov-solution-word').textContent=correctAnswer;
+    document.getElementById('ov-btns').innerHTML='<button class="btn btn-green" onclick="nextRound()">▶ Nächste Frage</button>';
     document.getElementById('ov-btns').style.display='none';
     document.getElementById('ov-correct-hint').style.display='none';
     flashScreen('r');
@@ -854,12 +846,30 @@ function resolve(){
 }
 
 // ── JUDGE ─────────────────────────────────────────────────
+let nextReadyA=false, nextReadyB=false;
+
 function nextRound(){
+  if(mpMode!=='solo'){
+    // In MP: track who is ready, only advance when both are
+    if(mySide==='a') nextReadyA=true; else nextReadyB=true;
+    mpSend({type:'next-ready'});
+    // Show waiting state on button
+    const btn=document.querySelector('#ov-btns .btn-green');
+    if(btn){ btn.textContent='⏳ Warte auf Mitspieler:in…'; btn.disabled=true; }
+    if(nextReadyA && nextReadyB) doNextRound();
+  } else {
+    doNextRound();
+  }
+}
+
+function doNextRound(){
+  nextReadyA=false; nextReadyB=false;
+  const btn=document.querySelector('#ov-btns .btn-green');
+  if(btn){ btn.textContent='▶ Nächste Frage'; btn.disabled=false; }
   document.getElementById('overlay').classList.remove('on');
   document.getElementById('ov-btns').style.display='flex';
   document.getElementById('ov-correct-hint').style.display='none';
   currentRound++;
-  if(mpMode!=='solo') mpSend({type:'next'});
   if(mpMode!=='solo') mpLoadRound(); else loadRound();
 }
 
@@ -868,8 +878,6 @@ function tryAgain(){
   document.getElementById('ov-correct-hint').style.display='none';
   buzzed=null;buzzedA=false;buzzedB=false;roundActive=true;
   selA=null;selB=null;
-  document.getElementById('sela').textContent='—';document.getElementById('sela').className='phsel a';
-  document.getElementById('selb').textContent='—';document.getElementById('selb').className='phsel b';
   ['a','b'].forEach(p=>{
     document.querySelectorAll(`#grid${p} .wb`).forEach(b=>{b.disabled=false;b.className='wb';});
     const b=document.getElementById(`buzz${p}`);b.disabled=true;b.className='buzzb';
@@ -893,25 +901,23 @@ async function getQ(f){
 // ── ABORT ─────────────────────────────────────────────────
 function requestAbort(){
   if(mpMode!=='solo'){
-    // In MP: ask partner
-    showAbortOverlay('Mitspieler wird gefragt…', false);
+    showAbortOverlay('Mitspieler:in wird gefragt…', false);
     mpSend({type:'abort-request'});
   } else {
-    // In solo: just confirm locally
     showAbortOverlay('Spiel wirklich abbrechen?', true);
   }
 }
 
 function showAbortOverlay(msg, showBtns){
-  const ov = document.getElementById('abort-overlay');
-  document.getElementById('abort-sub').textContent = msg;
-  document.getElementById('abort-btns').style.display = showBtns ? 'flex' : 'none';
-  document.getElementById('abort-waiting').style.display = showBtns ? 'none' : 'block';
-  ov.classList.add('on');
+  const ov=document.getElementById('abort-overlay');
+  document.getElementById('abort-sub').textContent=msg;
+  document.getElementById('abort-btns').style.display=showBtns?'flex':'none';
+  document.getElementById('abort-waiting').style.display=showBtns?'none':'block';
+  ov.style.display='flex';
 }
 
 function hideAbortOverlay(){
-  document.getElementById('abort-overlay').classList.remove('on');
+  document.getElementById('abort-overlay').style.display='none';
 }
 
 function confirmAbort(){
