@@ -1,4 +1,4 @@
-# 🎮 Kleine Lernspiele fürs Klassenzimmer
+# 🎮 Kleine Lernspiele
 
 Interaktive Lernspiele als standalone HTML-Dateien — kein Server, keine Installation, einfach öffnen und spielen.
 
