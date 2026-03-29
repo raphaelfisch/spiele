@@ -291,7 +291,11 @@ html,body{height:100%;font-family:'Barlow',sans-serif;background:var(--bg);color
 
 <script>
 // ── PROMPT TEXT ───────────────────────────────────────────
-const KI_PROMPT = `Erstelle ein Wortset für ein Wortkombi-Spiel im JSON-Format.
+const KI_PROMPT = `Du hilfst beim Erstellen von Wortsets für ein Wortkombi-Spiel.
+
+ZUERST: Frage nach dem gewünschten Thema, falls es nicht bereits angegeben wurde. Warte auf die Antwort, bevor du das JSON erstellst.
+
+---
 
 SPIELPRINZIP:
 - Es gibt 9 Wörter für Spieler A (links) und 9 andere für Spieler B (rechts)
@@ -349,9 +353,12 @@ function showPrompt(){
 }
 
 function copyPrompt(){
+  const btn=document.querySelector('#prompt-card .btn');
   navigator.clipboard.writeText(KI_PROMPT).then(()=>{
-    const btn=event.target;
     btn.textContent='✅ Kopiert!';
+    setTimeout(()=>btn.textContent='📋 Prompt kopieren',2000);
+  }).catch(()=>{
+    btn.textContent='❌ Fehler';
     setTimeout(()=>btn.textContent='📋 Prompt kopieren',2000);
   });
 }
@@ -516,10 +523,8 @@ function mpHandle(msg){
     b.className=`buzzb glow ${otherSide}`; b.disabled=true;
     document.querySelectorAll(`#grid${otherSide} .wb`).forEach(b=>b.disabled=true);
     if(buzzedA && buzzedB){ buzzed=true; roundActive=false; resolve(); }
-    else {
-      const myName = mySide==='a' ? players.a : players.b;
-      document.getElementById('qtext').innerHTML=`⏳ <em style="color:var(--dim)">${myName} wählt noch…</em>`;
-    }
+    // This device hasn't buzzed yet — question stays visible
+  
   } else if(d.type==='resolve'){
     // Host tells guest to show overlay
     selA = d.selA; selB = d.selB;
@@ -592,7 +597,8 @@ function startGame(){
   if(mpMode==='multi' && mpRole==='guest'){
     const code = document.getElementById('join-code').value.trim().toUpperCase();
     if(code.length!==4){ alert('Bitte einen 4-stelligen Code eingeben.'); return; }
-    const name = document.getElementById('name-self').value.trim()||'Spieler:in B';
+    const name = document.getElementById('name-self').value.trim();
+    if(!name){ alert('Bitte deinen Namen eingeben.'); return; }
     showScreen('lobby-screen');
     document.getElementById('lobby-label').textContent='Verbinde mit';
     document.getElementById('lobby-code').textContent=code;
@@ -617,7 +623,8 @@ function startGame(){
   if(mpMode==='multi' && mpRole==='host'){
     if(!wordSet){ alert('Bitte erst eine JSON-Datei laden!'); return; }
     const code = generateCode();
-    const name = document.getElementById('name-self').value.trim()||'Spieler:in A';
+    const name = document.getElementById('name-self').value.trim();
+    if(!name){ alert('Bitte deinen Namen eingeben.'); return; }
     showScreen('lobby-screen');
     document.getElementById('lobby-sub').textContent='Als Host — teile diesen Code:';
     document.getElementById('lobby-code').textContent=code;
@@ -784,9 +791,14 @@ function buzz(side){
     return;
   }
 
-  // Only one has buzzed — show waiting hint
-  const waiting = buzzedA ? players.b : players.a;
-  document.getElementById('qtext').innerHTML = `⏳ <em style="color:var(--dim)">${waiting} wählt noch…</em>`;
+  // Only one has buzzed — show waiting text only on the device that already buzzed
+  if(mpMode!=='solo'){
+    const iAlreadyBuzzed = (side==='a' && buzzedA) || (side==='b' && buzzedB);
+    if(iAlreadyBuzzed){
+      const partnerName = side==='a' ? players.b : players.a;
+      document.getElementById('qtext').innerHTML = `⏳ <em style="color:var(--dim)">Warte auf ${partnerName}…</em>`;
+    }
+  }
 }
 
 function resolve(){
