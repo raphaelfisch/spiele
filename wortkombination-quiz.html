@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Wortkombi-Quiz</title>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;900&family=Barlow:wght@400;600;700&display=swap');
+:root {
+  --bg:#0f0e17;--surface:#1a1928;--s2:#252440;
+  --pa:#4A90D9;--pa-dim:#1e3f6a;--pa-glow:rgba(74,144,217,0.25);
+  --pb:#E05A2B;--pb-dim:#6a2a10;--pb-glow:rgba(224,90,43,0.25);
+  --gold:#F5C518;--green:#3DDC84;--red:#FF5252;
+  --text:#fffffe;--dim:rgba(255,255,255,0.4);--div:rgba(255,255,255,0.07);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;font-family:'Barlow',sans-serif;background:var(--bg);color:var(--text);overflow:hidden;}
+.screen{display:none;width:100%;height:100%;}
+.screen.active{display:flex;}
+
+/* SETUP */
+#setup-screen{flex-direction:column;align-items:center;overflow-y:auto;padding:28px 16px 40px;}
+.setup-title{font-family:'Barlow Condensed',sans-serif;font-size:2rem;font-weight:900;letter-spacing:4px;color:var(--gold);margin-bottom:4px;text-align:center;}
+.setup-sub{color:var(--dim);font-size:0.85rem;text-align:center;margin-bottom:24px;}
+.scard{background:var(--surface);border:1px solid var(--div);border-radius:16px;padding:20px;width:100%;max-width:640px;margin-bottom:14px;}
+.scard-title{font-family:'Barlow Condensed',sans-serif;font-size:0.68rem;letter-spacing:3px;text-transform:uppercase;color:var(--dim);margin-bottom:14px;}
+.name-row{display:flex;gap:10px;}
+.ni{flex:1;background:var(--bg);border:2px solid var(--div);border-radius:10px;color:var(--text);padding:10px 14px;font-family:'Barlow',sans-serif;font-size:0.95rem;font-weight:600;outline:none;transition:border-color .2s;}
+.ni.a:focus{border-color:var(--pa);} .ni.b:focus{border-color:var(--pb);}
+.ni::placeholder{color:var(--dim);font-weight:400;}
+.rounds-list{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;max-height:180px;overflow-y:auto;}
+.rentry{background:var(--bg);border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.rnum{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:1rem;color:var(--gold);min-width:24px;}
+.rtag{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:0.85rem;background:var(--s2);border-radius:6px;padding:3px 8px;}
+.rtag.a{color:var(--pa);} .rtag.b{color:var(--pb);}
+.rdel{background:none;border:none;color:var(--dim);cursor:pointer;font-size:0.9rem;margin-left:auto;}
+.rdel:hover{color:var(--red);}
+.add-row{display:flex;flex-direction:column;gap:8px;}
+.add-row-inner{display:flex;gap:8px;}
+.si{background:var(--bg);border:1px solid var(--div);border-radius:8px;color:var(--text);padding:9px 12px;font-family:'Barlow Condensed',sans-serif;font-size:0.95rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;outline:none;transition:border-color .2s;flex:1;min-width:0;}
+.si:focus{border-color:var(--gold);}
+.si::placeholder{text-transform:none;color:var(--dim);font-weight:400;letter-spacing:0;font-size:0.82rem;}
+.qi{background:var(--bg);border:1px solid var(--div);border-radius:8px;color:var(--text);padding:9px 12px;font-family:'Barlow',sans-serif;font-size:0.85rem;font-weight:400;outline:none;transition:border-color .2s;width:100%;}
+.qi:focus{border-color:var(--gold);}
+.qi::placeholder{color:var(--dim);}
+.btn{font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;border:none;border-radius:10px;cursor:pointer;transition:all .15s;padding:10px 18px;font-size:0.95rem;}
+.btn-gold{background:var(--gold);color:#0f0e17;} .btn-gold:hover{background:#d9ac10;}
+.btn-s{background:var(--s2);color:var(--text);} .btn-s:hover{background:#353360;}
+.btn-full{width:100%;padding:16px;font-size:1.15rem;border-radius:14px;}
+.btn-green{background:var(--green);color:#0f0e17;} .btn-green:hover{background:#2bc46e;}
+.btn-red{background:var(--red);color:#fff;} .btn-red:hover{background:#cc2020;}
+
+/* GAME */
+#game-screen{flex-direction:column;}
+.gtop{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;background:var(--surface);border-bottom:1px solid var(--div);flex-shrink:0;gap:10px;}
+.gtitle{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:0.8rem;letter-spacing:3px;color:var(--gold);}
+.scores{display:flex;align-items:center;gap:10px;font-family:'Barlow Condensed',sans-serif;}
+.scp{text-align:center;min-width:56px;}
+.scn{font-size:0.62rem;letter-spacing:2px;color:var(--dim);text-transform:uppercase;}
+.scv{font-size:1.6rem;font-weight:900;}
+.scv.a{color:var(--pa);} .scv.b{color:var(--pb);}
+.scdiv{color:var(--dim);}
+.rbadge{font-family:'Barlow Condensed',sans-serif;font-size:0.75rem;font-weight:700;color:var(--dim);background:var(--s2);border-radius:99px;padding:3px 10px;white-space:nowrap;}
+.qbar{background:var(--s2);padding:9px 16px;text-align:center;flex-shrink:0;border-bottom:1px solid var(--div);position:relative;}
+.qbar::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--pa),var(--gold),var(--pb));}
+.qlabel{font-size:0.6rem;letter-spacing:3px;text-transform:uppercase;color:var(--dim);margin-bottom:3px;}
+.qtext{font-size:0.95rem;font-weight:600;line-height:1.4;color:var(--text);display:flex;align-items:center;justify-content:center;gap:8px;min-height:26px;}
+.qtext.loading{color:var(--dim);font-style:italic;font-size:0.85rem;}
+.loader{display:inline-block;width:13px;height:13px;border:2px solid rgba(245,197,24,.15);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.play-area{display:flex;flex:1;overflow:hidden;position:relative;}
+.phalf{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.phalf.a{border-right:2px solid var(--div);}
+.phhead{padding:7px 10px 5px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.phname{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:0.95rem;letter-spacing:2px;text-transform:uppercase;}
+.phname.a{color:var(--pa);} .phname.b{color:var(--pb);}
+.phsel{font-family:'Barlow Condensed',sans-serif;font-size:0.95rem;font-weight:700;letter-spacing:1px;color:var(--dim);background:var(--s2);border-radius:6px;padding:3px 10px;min-width:64px;text-align:center;transition:all .3s;border:1px solid transparent;}
+.phsel.chosen.a{color:var(--pa);border-color:var(--pa);background:var(--pa-dim);}
+.phsel.chosen.b{color:var(--pb);border-color:var(--pb);background:var(--pb-dim);}
+.phsel.revealed{color:var(--gold)!important;border-color:var(--gold)!important;background:rgba(245,197,24,.1)!important;}
+
+.wgrid{flex:1;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:6px;padding:5px 8px 7px;}
+.wb{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:clamp(0.8rem,2.4vw,1.3rem);letter-spacing:1px;text-transform:uppercase;background:var(--s2);color:var(--text);border:2px solid transparent;border-radius:9px;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;padding:3px;line-height:1.1;user-select:none;-webkit-user-select:none;}
+.wb:active:not(:disabled){transform:scale(0.96);}
+.wb.sel.a{background:var(--pa-dim);border-color:var(--pa);color:#fff;}
+.wb.sel.b{background:var(--pb-dim);border-color:var(--pb);color:#fff;}
+.wb:disabled{opacity:.35;cursor:default;transform:none!important;}
+
+.buzzwrap{padding:5px 8px 9px;flex-shrink:0;}
+.buzzb{width:100%;padding:11px;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:1rem;letter-spacing:3px;text-transform:uppercase;border:none;border-radius:9px;cursor:pointer;transition:all .15s;background:var(--s2);color:var(--dim);}
+.buzzb.ready.a{background:var(--pa);color:#fff;}
+.buzzb.ready.b{background:var(--pb);color:#fff;}
+.buzzb.ready:hover{opacity:.85;}
+.buzzb.ready:active{transform:scale(.97);}
+.buzzb.glow.a{background:var(--pa);color:#fff;animation:glowa .7s ease-in-out infinite alternate;}
+.buzzb.glow.b{background:var(--pb);color:#fff;animation:glowb .7s ease-in-out infinite alternate;}
+@keyframes glowa{from{box-shadow:0 0 0 rgba(74,144,217,0);}to{box-shadow:0 0 22px rgba(74,144,217,.7);}}
+@keyframes glowb{from{box-shadow:0 0 0 rgba(224,90,43,0);}to{box-shadow:0 0 22px rgba(224,90,43,.7);}}
+.buzzb:disabled:not(.glow){background:var(--s2);color:#333;cursor:not-allowed;}
+
+/* OVERLAY */
+.overlay{position:absolute;inset:0;background:rgba(15,14,23,.93);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:20;gap:12px;padding:20px;}
+.overlay.on{display:flex;}
+.ov-answer{font-family:'Barlow Condensed',sans-serif;font-size:clamp(1.6rem,5vw,2.8rem);font-weight:900;letter-spacing:4px;color:var(--gold);text-align:center;}
+.ov-parts{font-size:0.78rem;color:var(--dim);letter-spacing:2px;text-align:center;}
+.ov-status{font-size:1rem;font-weight:700;text-align:center;}
+.ov-btns{display:flex;gap:10px;width:100%;max-width:320px;}
+.ov-btns .btn{flex:1;padding:13px;font-size:0.9rem;}
+.ov-skip{background:none;border:1px solid var(--div);color:var(--dim);border-radius:8px;padding:9px 20px;font-family:'Barlow Condensed',sans-serif;font-size:0.8rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;width:100%;max-width:320px;}
+.ov-skip:hover{border-color:var(--dim);color:var(--text);}
+
+/* MULTIPLAYER */
+.mode-btn{flex:1;padding:14px;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:1rem;letter-spacing:2px;text-transform:uppercase;border:2px solid var(--div);border-radius:12px;background:var(--s2);color:var(--text);cursor:pointer;transition:all .2s;}
+.mode-btn:hover{border-color:var(--gold);color:var(--gold);}
+.mode-btn.active{background:var(--gold);color:var(--bg);border-color:var(--gold);}
+.code-display{font-family:'Barlow Condensed',sans-serif;font-size:3.5rem;font-weight:900;letter-spacing:8px;color:var(--gold);text-align:center;background:var(--bg);border-radius:12px;padding:16px;margin:12px 0;border:2px solid rgba(245,197,24,.3);}
+.code-input{background:var(--bg);border:2px solid var(--div);border-radius:10px;color:var(--gold);padding:12px 16px;font-family:'Barlow Condensed',sans-serif;font-size:2rem;font-weight:900;letter-spacing:6px;text-transform:uppercase;text-align:center;width:100%;outline:none;transition:border-color .2s;}
+.code-input:focus{border-color:var(--gold);}
+.mp-status{text-align:center;color:var(--dim);font-size:0.85rem;min-height:24px;margin-top:8px;}
+.mp-status.ok{color:var(--green);}
+.mp-status.err{color:var(--red);}
+/* SOLO game: show both halves. MP game: show only own half fullscreen */
+.solo-only{display:flex!important;}
+.mp-hidden{display:none!important;}
+#game-screen.mp-mode .phalf.hidden-side{display:none!important;}
+#game-screen.mp-mode .phalf{flex:1;}
+
+#result-screen{flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px 20px;}
+.re-emoji{font-size:5rem;margin-bottom:10px;}
+.re-title{font-family:'Barlow Condensed',sans-serif;font-size:2.5rem;font-weight:900;letter-spacing:3px;color:var(--gold);margin-bottom:6px;}
+.re-sub{color:var(--dim);margin-bottom:28px;}
+.fcards{display:flex;gap:14px;margin-bottom:32px;flex-wrap:wrap;justify-content:center;}
+.fcard{background:var(--surface);border:2px solid var(--div);border-radius:16px;padding:20px 32px;text-align:center;}
+.fcard.win{box-shadow:0 0 30px rgba(245,197,24,.2);border-color:var(--gold);}
+.fcard .fn{font-size:0.75rem;letter-spacing:2px;text-transform:uppercase;color:var(--dim);margin-bottom:6px;}
+.fcard .fp{font-family:'Barlow Condensed',sans-serif;font-size:3.5rem;font-weight:900;}
+.fcard.a .fp{color:var(--pa);} .fcard.b .fp{color:var(--pb);}
+
+#flash{position:fixed;inset:0;pointer-events:none;opacity:0;z-index:999;transition:opacity .2s;}
+#flash.g{background:rgba(61,220,132,.15);opacity:1;}
+#flash.r{background:rgba(255,82,82,.15);opacity:1;}
+</style>
+</head>
+<body>
+<div id="flash"></div>
+
+<!-- SETUP -->
+<div class="screen active" id="setup-screen">
+  <div class="setup-title">🎯 WORTKOMBI</div>
+  <div class="setup-sub">Zwei Seiten · Neun Wörter · Ein Kompositum</div>
+
+  <div class="scard">
+    <div class="scard-title">Spielmodus</div>
+    <div style="display:flex;gap:10px">
+      <button class="mode-btn active" id="btn-host" onclick="setRole('host')">🏠 Host (lädt JSON)</button>
+      <button class="mode-btn" id="btn-guest" onclick="setRole('guest')">🔗 Gast (tritt bei)</button>
+    </div>
+    <div id="guest-code-input" style="display:none;margin-top:14px">
+      <div class="scard-title">Code eingeben</div>
+      <input class="code-input" type="text" id="join-code" placeholder="XXXX" maxlength="4" oninput="this.value=this.value.toUpperCase()">
+    </div>
+    <div style="margin-top:14px">
+      <div class="scard-title">Dein Name</div>
+      <input class="ni" type="text" id="name-self" placeholder="Dein Name" maxlength="14" style="width:100%;margin-top:4px">
+    </div>
+  </div>
+
+  <div class="scard" style="border-color:rgba(245,197,24,.2)">
+    <div class="scard-title">📂 Fragen laden (JSON-Datei)</div>
+    <label id="upload-label" style="display:flex;align-items:center;gap:12px;background:var(--bg);border:2px dashed rgba(245,197,24,.3);border-radius:10px;padding:16px;cursor:pointer;transition:border-color .2s,background .2s">
+      <span style="font-size:1.8rem">📁</span>
+      <div>
+        <div style="font-weight:700;color:var(--gold);font-family:'Barlow Condensed',sans-serif;font-size:1rem;letter-spacing:1px">JSON-Datei auswählen oder hier hineinziehen</div>
+        <div style="color:var(--dim);font-size:0.78rem;margin-top:2px" id="upload-status">Noch keine Datei geladen</div>
+      </div>
+      <input type="file" id="file-input" accept=".json" style="display:none" onchange="loadJSON(this)">
+    </label>
+    <div style="margin-top:12px">
+      <button class="btn btn-s" style="color:var(--gold);font-size:0.8rem" onclick="showPrompt()">📋 KI-Prompt anzeigen</button>
+    </div>
+  </div>
+
+  <div class="scard" id="prompt-card" style="display:none;border-color:rgba(74,144,217,.2)">
+    <div class="scard-title">📋 Prompt für KI (Claude, ChatGPT, etc.)</div>
+    <div style="background:var(--bg);border-radius:8px;padding:12px;font-size:0.78rem;line-height:1.6;color:rgba(255,255,255,.75);white-space:pre-wrap;font-family:monospace;max-height:220px;overflow-y:auto" id="prompt-text"></div>
+    <button class="btn btn-s" style="margin-top:10px;width:100%" onclick="copyPrompt()">📋 Prompt kopieren</button>
+  </div>
+
+  <div style="width:100%;max-width:640px">
+    <button class="btn btn-gold btn-full" onclick="startGame()">Spiel starten ▶</button>
+    <div style="text-align:center;margin-top:12px">
+      <button onclick="setMode('solo');startGame()" style="background:none;border:none;color:var(--dim);font-size:0.78rem;cursor:pointer;text-decoration:underline;font-family:'Barlow',sans-serif">🖥 Testmodus (ein Gerät, beide Seiten sichtbar)</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOBBY (multiplayer waiting) -->
+<div class="screen" id="lobby-screen">
+  <div class="setup-title" style="margin-top:40px">🎯 WORTKOMBI</div>
+  <div class="setup-sub" id="lobby-sub">Verbinde...</div>
+  <div class="scard" style="max-width:360px;width:90%;margin-top:20px;text-align:center">
+    <div class="scard-title" id="lobby-label">Dein Code</div>
+    <div class="code-display" id="lobby-code">····</div>
+    <div class="mp-status" id="lobby-status">Warte auf Gegenspieler…</div>
+    <button class="btn btn-s" style="margin-top:16px;width:100%" onclick="backToSetup()">← Zurück</button>
+  </div>
+</div>
+
+<!-- GAME -->
+<div class="screen" id="game-screen">
+  <div class="gtop">
+    <div class="phname a" id="phna" style="font-size:0.9rem">A</div>
+    <div class="rbadge" id="rbadge">R 1</div>
+    <div class="phname b" id="phnb" style="font-size:0.9rem;text-align:right">B</div>
+  </div>
+
+  <div class="qbar">
+    <div class="qlabel">Frage</div>
+    <div class="qtext loading" id="qtext"><span class="loader"></span> Frage wird geladen…</div>
+  </div>
+
+  <div class="play-area">
+    <div class="phalf a">
+      <div class="phhead">
+        <div class="phname a" id="phna">A</div>
+        <div class="phsel a" id="sela">—</div>
+      </div>
+      <div class="wgrid" id="grida"></div>
+      <div class="buzzwrap">
+        <button class="buzzb" id="buzza" onclick="buzz('a')" disabled>⚡ BUZZ</button>
+      </div>
+    </div>
+
+    <div class="phalf b">
+      <div class="phhead">
+        <div class="phname b" id="phnb">B</div>
+        <div class="phsel b" id="selb">—</div>
+      </div>
+      <div class="wgrid" id="gridb"></div>
+      <div class="buzzwrap">
+        <button class="buzzb" id="buzzb" onclick="buzz('b')" disabled>⚡ BUZZ</button>
+      </div>
+    </div>
+
+    <div class="overlay" id="overlay">
+      <div style="font-size:0.7rem;letter-spacing:3px;text-transform:uppercase;color:var(--dim);margin-bottom:4px" id="ov-label">Eure Antwort</div>
+      <div class="ov-answer" id="ov-ans">—</div>
+      <div class="ov-parts" id="ov-parts"></div>
+      <div class="ov-status" id="ov-status" style="font-size:1.3rem;font-weight:700;text-align:center;margin-top:4px"></div>
+      <div id="ov-solution" style="display:none;text-align:center">
+        <div style="font-size:0.7rem;letter-spacing:2px;color:var(--dim);margin-bottom:4px">RICHTIGE ANTWORT</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:2rem;font-weight:900;letter-spacing:3px;color:var(--gold)" id="ov-solution-word"></div>
+      </div>
+      <div class="ov-btns" id="ov-btns" style="margin-top:8px">
+        <button class="btn btn-green" onclick="nextRound()">▶ Nächste Frage</button>
+      </div>
+      <div id="ov-correct-hint" style="display:none;width:100%;max-width:320px;flex-direction:column;gap:8px;align-items:center;margin-top:4px">
+        <button class="btn btn-s" style="width:100%;padding:11px" onclick="tryAgain()">🔄 Nochmal versuchen</button>
+        <button class="ov-skip" onclick="skipRound()">⏩ Frage überspringen</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- RESULT -->
+<div class="screen" id="result-screen">
+  <div class="re-emoji" id="re-emoji">🏆</div>
+  <div class="re-title" id="re-title">Gewinner!</div>
+  <div class="re-sub" id="re-sub"></div>
+  <div class="fcards" id="fcards"></div>
+  <button class="btn btn-gold btn-full" style="max-width:300px" onclick="backToSetup()">🔄 Nochmal spielen</button>
+</div>
+
+<script>
+// ── PROMPT TEXT ───────────────────────────────────────────
+const KI_PROMPT = `Erstelle ein Wortset für ein Wortkombi-Spiel im JSON-Format.
+
+SPIELPRINZIP:
+- Es gibt 9 Wörter für Spieler A (links) und 9 andere für Spieler B (rechts)
+- Diese 18 Wörter bleiben die GANZE Spielrunde gleich
+- Zu diesen 18 Wörtern werden mehrere Rätselfragen gestellt
+- Jede Frage hat eine andere Lösung — aber immer aus denselben 18 Wörtern
+- Beide Spieler wählen unabhängig je ein Wort aus ihrer Liste
+- Zusammengesetzt ergibt das Wortpaar die Antwort auf die Frage
+- Beispiel: Frage "Welches gehörnte Wildtier klettert über Felswände?" → A wählt STEIN, B wählt BOCK → STEINBOCK ✓
+
+SCHLÜSSELPRINZIP — THEMATISCHE KOHÄRENZ:
+Alle 18 Wörter sollen zum gleichen Themenfeld gehören. Dadurch ist die Auswahl schwieriger — die Spieler müssen wirklich überlegen, welches ihrer Wörter passt.
+Gutes Beispiel (Thema: Schweizer Alpen):
+  A: JUNG, EDEL, STEIN, WEISS, GOLD, ALPEN, ALT, BERG, GRAS
+  B: FRAU, WEISS, BOCK, HORN, BERG, GLÜHEN, MANN, STEIGER, HÜPFER
+  → JUNGFRAU, EDELWEISS, STEINBOCK, WEISSHORN, GOLDBERG, ALPENGLÜHEN, ALTMANN, BERGSTEIGER, GRASHÜPFER
+
+FORMAT (exakt so ausgeben, als valides JSON):
+{
+  "titel": "Thema des Sets",
+  "aWorte": ["WORT1", "WORT2", "WORT3", "WORT4", "WORT5", "WORT6", "WORT7", "WORT8", "WORT9"],
+  "bWorte": ["WORT1", "WORT2", "WORT3", "WORT4", "WORT5", "WORT6", "WORT7", "WORT8", "WORT9"],
+  "fragen": [
+    { "frage": "Rätselfrage 1?", "loesungA": "WORT_AUS_A", "loesungB": "WORT_AUS_B", "loesung": "VOLLSTÄNDIGES_KOMPOSITUM" },
+    { "frage": "Rätselfrage 2?", "loesungA": "WORT_AUS_A", "loesungB": "WORT_AUS_B", "loesung": "VOLLSTÄNDIGES_KOMPOSITUM" }
+  ]
+}
+
+REGELN:
+1. Alle 18 Wörter thematisch kohärent — sie alle gehören zum gleichen Themenfeld
+2. Mindestens 8 Fragen pro Set, Ziel sind 10 — jede Frage hat eine andere Lösung
+3. Die Frage umschreibt das Lösungswort bildhaft — nennt es aber NICHT direkt
+4. Fragen sind kurz (max. 12 Wörter), klingen wie echte Quizshow-Fragen
+5. loesungA muss in aWorte enthalten sein, loesungB in bWorte
+6. loesung ist das vollständige Kompositum in der richtigen Reihenfolge — das kann loesungA+loesungB ODER loesungB+loesungA sein, je nachdem was das echte Wort ergibt. Beispiel: loesungA=HOF, loesungB=SCHUL → loesung=SCHULHOF (B+A)
+7. Alle Wörter GROSSGESCHRIEBEN
+7. BEIDE Teile eines Kompositums müssen eigenständige deutsche Wörter sein:
+   STEIN ✓ + BOCK ✓ = STEINBOCK ✓
+   LEHR ✗ + ER ✗ = LEHRER ✗  (weder LEHR noch ER sind eigenständige Wörter)
+   SCHUL ✗ + HOF ✓  → erlaubt nur wenn SCHUL als Kurzform klar erkennbar ist — im Zweifel vermeiden
+8. Die Aufteilung A/B darf variieren — manchmal hat A den Wortanfang, manchmal B:
+   Beispiel: A=HOF, B=SCHUL → SCHULHOF (B ist Prefix). So wird das Spiel anspruchsvoller.
+9. Alle Lösungswörter müssen echte, im Duden stehende deutsche Komposita sein — nichts erfinden!
+   Vor dem Eintragen prüfen: Gibt es WORTAB wirklich? Und WORTBA? Nur das existierende nehmen.
+10. Die Frage muss exakt zur Lösung passen — nicht zu einem anderen möglichen Kompositum aus den Wörtern
+
+Gib NUR das JSON aus, ohne Erklärung, ohne Markdown-Backticks.`;
+
+function showPrompt(){
+  const card=document.getElementById('prompt-card');
+  card.style.display=card.style.display==='none'?'block':'none';
+  document.getElementById('prompt-text').textContent=KI_PROMPT;
+}
+
+function copyPrompt(){
+  navigator.clipboard.writeText(KI_PROMPT).then(()=>{
+    const btn=event.target;
+    btn.textContent='✅ Kopiert!';
+    setTimeout(()=>btn.textContent='📋 Prompt kopieren',2000);
+  });
+}
+
+// ── DRAG & DROP ───────────────────────────────────────────
+const dropZone=document.getElementById('upload-label');
+dropZone.addEventListener('dragover',e=>{
+  e.preventDefault();
+  dropZone.style.borderColor='rgba(245,197,24,.9)';
+  dropZone.style.background='rgba(245,197,24,.07)';
+});
+dropZone.addEventListener('dragleave',e=>{
+  dropZone.style.borderColor='rgba(245,197,24,.3)';
+  dropZone.style.background='';
+});
+dropZone.addEventListener('drop',e=>{
+  e.preventDefault();
+  dropZone.style.borderColor='rgba(245,197,24,.3)';
+  dropZone.style.background='';
+  const file=e.dataTransfer.files[0];
+  if(!file||!file.name.endsWith('.json')){
+    alert('Bitte eine .json-Datei hineinziehen.');
+    return;
+  }
+  const reader=new FileReader();
+  reader.onload=ev=>parseJSON(ev.target.result, file.name);
+  reader.readAsText(file);
+});
+// ── JSON UPLOAD ───────────────────────────────────────────
+function loadJSON(input){
+  const file=input.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>parseJSON(e.target.result, file.name);
+  reader.readAsText(file);
+}
+
+function parseJSON(text, filename){
+  try{
+    const data=JSON.parse(text);
+    if(!data.fragen||!Array.isArray(data.fragen)||!data.fragen.length) throw new Error('Kein "fragen"-Array gefunden');
+    const aW=(data.aWorte||data.aWords||[]).map(w=>String(w).toUpperCase().trim());
+    const bW=(data.bWorte||data.bWords||[]).map(w=>String(w).toUpperCase().trim());
+    if(aW.length<2||bW.length<2) throw new Error('Zu wenige Wörter in aWorte/bWorte');
+    while(aW.length<9)aW.push('·');
+    while(bW.length<9)bW.push('·');
+    wordSet={
+      titel:data.titel||filename,
+      aWords:aW.slice(0,9),
+      bWords:bW.slice(0,9),
+      fragen:data.fragen.map(f=>({
+        frage:f.frage||f.question||'?',
+        loesungA:String(f.loesungA||f.answerA||'').toUpperCase().trim(),
+        loesungB:String(f.loesungB||f.answerB||'').toUpperCase().trim(),
+      }))
+    };
+    document.getElementById('upload-status').textContent=`✅ "${wordSet.titel}" — ${wordSet.fragen.length} Fragen geladen`;
+    document.getElementById('upload-status').style.color='var(--green)';
+    renderList();
+  }catch(err){
+    alert('Fehler beim Laden: '+err.message+'\n\nBitte prüfe das JSON-Format.');
+    document.getElementById('upload-status').textContent='❌ Fehler beim Laden';
+    document.getElementById('upload-status').style.color='var(--red)';
+  }
+}
+
+// ── STATE ─────────────────────────────────────────────────
+let wordSet=null;
+let players={a:'A',b:'B'};
+let scores={team:0};
+let sideSwapped=false;
+let shuffledFragen=[], currentRound=0;
+let selA=null, selB=null, buzzed=null;
+let roundActive=false, qLoaded=false;
+
+// ── SETUP ─────────────────────────────────────────────────
+function renderList(){
+  // Info wird direkt im upload-status angezeigt — keine separate Liste nötig
+}
+
+function removeRound(i){rounds.splice(i,1);renderList();}
+function loadDefaults(){}
+renderList();
+
+// ── MULTIPLAYER STATE ─────────────────────────────────────
+let mpMode = 'multi';  // 'solo' | 'host' | 'guest' — default is multi/host
+let mpRole = 'host';
+let peer = null;
+let conn = null;
+let mySide = 'a';
+
+function setMode(mode){
+  mpMode = mode;
+}
+
+function setRole(role){
+  mpRole = role;
+  document.getElementById('btn-host').classList.toggle('active', role==='host');
+  document.getElementById('btn-guest').classList.toggle('active', role==='guest');
+  document.getElementById('guest-code-input').style.display = role==='guest' ? '' : 'none';
+}
+
+function generateCode(){
+  const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return Array.from({length:4},()=>chars[Math.floor(Math.random()*chars.length)]).join('');
+}
+
+function mpSend(msg){
+  if(conn && conn.open) conn.send(JSON.stringify(msg));
+}
+
+function mpHandle(msg){
+  const d = typeof msg === 'string' ? JSON.parse(msg) : msg;
+  if(d.type==='start'){
+    // Guest receives game config from host
+    wordSet = d.wordSet;
+    shuffledFragen = d.fragen;
+    sideSwapped = d.sideSwapped;
+    players = d.players;
+    currentRound = 0;
+    scores = {team:0};
+    mySide = 'b'; // guest is always B
+    showScreen('game-screen');
+    document.getElementById('game-screen').classList.add('mp-mode');
+    updateScores();
+    mpLoadRound();
+  } else if(d.type==='round'){
+    currentRound = d.round;
+    mpLoadRound();
+  } else if(d.type==='pick'){
+    // Other player picked a word — show on their sel display
+    const otherSide = mySide==='a' ? 'b' : 'a';
+    setSelEl(otherSide, d.word);
+    if(otherSide==='a') selA=d.word; else selB=d.word;
+    refreshBuzz();
+  } else if(d.type==='buzz'){
+    // Other player buzzed
+    const otherSide = mySide==='a' ? 'b' : 'a';
+    if(otherSide==='a'){ buzzedA=true; } else { buzzedB=true; }
+    const b=document.getElementById(`buzz${otherSide}`);
+    b.className=`buzzb glow ${otherSide}`; b.disabled=true;
+    document.querySelectorAll(`#grid${otherSide} .wb`).forEach(b=>b.disabled=true);
+    if(buzzedA && buzzedB){ buzzed=true; roundActive=false; resolve(); }
+    else {
+      const waiting = buzzedA ? players.b : players.a;
+      document.getElementById('qtext').innerHTML=`⏳ <em style="color:var(--dim)">${waiting} wählt noch…</em>`;
+    }
+  } else if(d.type==='resolve'){
+    // Host tells guest to show overlay
+    selA = d.selA; selB = d.selB;
+    buzzed=true; roundActive=false;
+    resolve();
+  } else if(d.type==='next'){
+    currentRound++; mpLoadRound();
+  } else if(d.type==='end'){
+    endGame();
+  }
+}
+
+function mpLoadRound(){
+  if(currentRound>=shuffledFragen.length){ endGame(); return; }
+  const f=shuffledFragen[currentRound];
+  selA=null;selB=null;buzzed=null;buzzedA=false;buzzedB=false;roundActive=false;qLoaded=false;
+
+  document.getElementById('rbadge').textContent=`F ${currentRound+1}/${shuffledFragen.length}`;
+  document.getElementById('overlay').classList.remove('on');
+  setSelEl('a',null); setSelEl('b',null);
+
+  ['a','b'].forEach(p=>{
+    const b=document.getElementById(`buzz${p}`);
+    b.disabled=true; b.className='buzzb';
+  });
+
+  const aWords = sideSwapped ? wordSet.bWords : wordSet.aWords;
+  const bWords = sideSwapped ? wordSet.aWords : wordSet.bWords;
+
+  // Each device only interacts with their own side, but both grids are built
+  buildGrid('a', [...aWords].sort(()=>Math.random()-.5));
+  buildGrid('b', [...bWords].sort(()=>Math.random()-.5));
+
+  // Hide the other side's grid buttons (can't click them)
+  const otherSide = mySide==='a' ? 'b' : 'a';
+  document.querySelectorAll(`#grid${otherSide} .wb`).forEach(b=>{
+    b.style.pointerEvents='none'; b.style.opacity='0.4';
+  });
+  document.getElementById(`buzz${otherSide}`).style.opacity='0.4';
+  document.getElementById(`buzz${otherSide}`).style.pointerEvents='none';
+
+  const qt=document.getElementById('qtext');
+  qt.className='qtext loading';
+  qt.innerHTML='<span class="loader"></span> Frage wird geladen…';
+  getQ(f).then(q=>{
+    qt.className='qtext'; qt.textContent=q;
+    qLoaded=true; roundActive=true;
+    document.querySelectorAll(`#grid${mySide} .wb`).forEach(b=>b.disabled=false);
+    refreshBuzz();
+  });
+}
+
+// ── GAME ──────────────────────────────────────────────────
+function startGame(){
+  if(mpMode==='multi' && mpRole==='guest'){
+    // Guest: connect to host
+    const code = document.getElementById('join-code').value.trim().toUpperCase();
+    if(code.length!==4){ alert('Bitte einen 4-stelligen Code eingeben.'); return; }
+    const name = document.getElementById('name-self').value.trim()||'Spieler B';
+    showScreen('lobby-screen');
+    document.getElementById('lobby-label').textContent='Verbinde mit';
+    document.getElementById('lobby-code').textContent=code;
+    document.getElementById('lobby-sub').textContent='Als Gast beitreten';
+    document.getElementById('lobby-status').textContent='Verbinde…';
+    peer = new Peer();
+    peer.on('open', ()=>{
+      conn = peer.connect('wortkombi-'+code);
+      conn.on('open',()=>{
+        document.getElementById('lobby-status').textContent='✅ Verbunden! Warte auf Host…';
+        document.getElementById('lobby-status').className='mp-status ok';
+        conn.send(JSON.stringify({type:'hello', name}));
+      });
+      conn.on('data', mpHandle);
+      conn.on('error', e=>{ document.getElementById('lobby-status').textContent='❌ Fehler: '+e; document.getElementById('lobby-status').className='mp-status err'; });
+    });
+    peer.on('error', e=>{ document.getElementById('lobby-status').textContent='❌ '+e.type+': Ungültiger Code?'; document.getElementById('lobby-status').className='mp-status err'; });
+    return;
+  }
+
+  if(mpMode==='multi' && mpRole==='host'){
+    if(!wordSet){ alert('Bitte erst eine JSON-Datei laden!'); return; }
+    const code = generateCode();
+    const name = document.getElementById('name-self').value.trim()||'Spieler A';
+    showScreen('lobby-screen');
+    document.getElementById('lobby-sub').textContent='Als Host — teile diesen Code:';
+    document.getElementById('lobby-code').textContent=code;
+    document.getElementById('lobby-status').textContent='Warte auf Gegenspieler…';
+    peer = new Peer('wortkombi-'+code);
+    peer.on('open',()=>{});
+    peer.on('connection', c=>{
+      conn=c;
+      conn.on('open',()=>{
+        document.getElementById('lobby-status').textContent='✅ Verbunden! Spiel startet…';
+        document.getElementById('lobby-status').className='mp-status ok';
+      });
+      conn.on('data', d=>{
+        const msg = typeof d==='string'?JSON.parse(d):d;
+        if(msg.type==='hello'){
+          // Start game
+          mySide='a';
+          players={a:name, b:msg.name};
+          shuffledFragen=[...wordSet.fragen].sort(()=>Math.random()-.5);
+          sideSwapped=Math.random()<0.5;
+          currentRound=0; scores={team:0};
+          // Send config to guest
+          mpSend({type:'start', wordSet, fragen:shuffledFragen, sideSwapped, players});
+          // Start on host
+          setTimeout(()=>{
+            showScreen('game-screen');
+            document.getElementById('game-screen').classList.add('mp-mode');
+            updateScores();
+            mpLoadRound();
+          }, 800);
+        } else { mpHandle(d); }
+      });
+    });
+    peer.on('error',e=>{ document.getElementById('lobby-status').textContent='❌ '+e.type; document.getElementById('lobby-status').className='mp-status err'; });
+    return;
+  }
+
+  // SOLO / TEST mode
+  if(!wordSet){alert('Bitte erst eine JSON-Datei laden!');return;}
+  players.a = 'Spieler A';
+  players.b = 'Spieler B';
+  shuffledFragen=[...wordSet.fragen].sort(()=>Math.random()-.5);
+  currentRound=0;
+  scores={team:0};
+  sideSwapped = Math.random() < 0.5;
+  document.getElementById('game-screen').classList.remove('mp-mode');
+  showScreen('game-screen');
+  updateScores();
+  loadRound();
+}
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function updateScores(){
+  document.getElementById('phna').textContent=players.a;
+  document.getElementById('phnb').textContent=players.b;
+}
+
+function loadRound(){
+  if(currentRound>=shuffledFragen.length){endGame();return;}
+  const f=shuffledFragen[currentRound];
+  selA=null;selB=null;buzzed=null;buzzedA=false;buzzedB=false;roundActive=false;qLoaded=false;
+
+  document.getElementById('rbadge').textContent=`F ${currentRound+1}/${shuffledFragen.length}`;
+  document.getElementById('overlay').classList.remove('on');
+
+  setSelEl('a',null); setSelEl('b',null);
+  ['a','b'].forEach(p=>{
+    const b=document.getElementById(`buzz${p}`);
+    b.disabled=true; b.className='buzzb';
+  });
+
+  const aWords = sideSwapped ? wordSet.bWords : wordSet.aWords;
+  const bWords = sideSwapped ? wordSet.aWords : wordSet.bWords;
+  buildGrid('a', [...aWords].sort(()=>Math.random()-.5));
+  buildGrid('b', [...bWords].sort(()=>Math.random()-.5));
+  // Restore pointer events (may have been disabled in MP mode)
+  document.querySelectorAll('.wb').forEach(b=>{ b.style.pointerEvents=''; b.style.opacity=''; });
+  document.getElementById('buzza').style.pointerEvents='';
+  document.getElementById('buzza').style.opacity='';
+  document.getElementById('buzzb').style.pointerEvents='';
+  document.getElementById('buzzb').style.opacity='';
+
+  const qt=document.getElementById('qtext');
+  qt.className='qtext loading';
+  qt.innerHTML='<span class="loader"></span> Frage wird geladen…';
+
+  getQ(f).then(q=>{
+    qt.className='qtext';
+    qt.textContent=q;
+    qLoaded=true;
+    roundActive=true;
+    document.querySelectorAll('.wb').forEach(b=>b.disabled=false);
+    refreshBuzz();
+  });
+}
+
+function buildGrid(side,words){
+  const g=document.getElementById(`grid${side}`);
+  g.innerHTML=words.map(w=>
+    `<button class="wb" data-word="${w}" onclick="pick('${side}','${w}')" disabled>${w}</button>`
+  ).join('');
+}
+
+function setSelEl(side,word){
+  const el=document.getElementById(`sel${side}`);
+  if(!word){el.textContent='—';el.className=`phsel ${side}`;}
+  else{el.textContent=word;el.className=`phsel ${side} chosen`;}
+}
+
+function pick(side,word){
+  if(!roundActive||!qLoaded||buzzed||word==='·')return;
+  if(mpMode!=='solo' && side!==mySide) return; // can't pick for other side in MP
+  if(side==='a')selA=word; else selB=word;
+  setSelEl(side,word);
+  document.querySelectorAll(`#grid${side} .wb`).forEach(b=>{
+    b.className='wb'+(b.dataset.word===word?` sel ${side}`:'');
+  });
+  if(mpMode!=='solo') mpSend({type:'pick', word, side});
+  refreshBuzz();
+}
+
+function refreshBuzz(){
+  if(!roundActive||!qLoaded)return;
+  ['a','b'].forEach(p=>{
+    const sel=p==='a'?selA:selB;
+    const b=document.getElementById(`buzz${p}`);
+    if(sel&&!buzzed){b.disabled=false;b.className=`buzzb ready ${p}`;}
+    else if(!buzzed){b.disabled=true;b.className='buzzb';}
+  });
+}
+
+// ── BUZZ ──────────────────────────────────────────────────
+// buzzedA / buzzedB track whether each side has confirmed their choice
+let buzzedA=false, buzzedB=false;
+
+function buzz(side){
+  if(!roundActive||!qLoaded)return;
+  const sel=side==='a'?selA:selB;
+  if(!sel)return;
+
+  if(mpMode!=='solo' && side!==mySide) return; // can't buzz for other side
+
+  if(side==='a'){
+    if(buzzedA)return;
+    buzzedA=true;
+    const b=document.getElementById('buzza');
+    b.className='buzzb glow a'; b.disabled=true;
+    document.querySelectorAll('#grida .wb').forEach(b=>b.disabled=true);
+  } else {
+    if(buzzedB)return;
+    buzzedB=true;
+    const b=document.getElementById('buzzb');
+    b.className='buzzb glow b'; b.disabled=true;
+    document.querySelectorAll('#gridb .wb').forEach(b=>b.disabled=true);
+  }
+
+  if(mpMode!=='solo') mpSend({type:'buzz', side});
+
+  // Both buzzed? Reveal and evaluate immediately.
+  if(buzzedA && buzzedB){
+    buzzed=true;
+    roundActive=false;
+    resolve();
+    return;
+  }
+
+  // Only one has buzzed — show waiting hint
+  const waiting = buzzedA ? players.b : players.a;
+  document.getElementById('qtext').innerHTML = `⏳ <em style="color:var(--dim)">${waiting} wählt noch…</em>`;
+}
+
+function resolve(){
+  const f=shuffledFragen[currentRound];
+
+  // Clear waiting text
+  const qt=document.getElementById('qtext');
+  qt.className='qtext';
+  qt.textContent=f.frage;
+
+  const correctA = sideSwapped ? f.loesungB : f.loesungA;
+  const correctB = sideSwapped ? f.loesungA : f.loesungB;
+  const correct = selA===correctA && selB===correctB;
+  // Correct answer: stored in f.loesung if present, otherwise try A+B
+  const correctAnswer = f.loesung || (f.loesungA+f.loesungB);
+  // What the players produced — show as "A-Wort + B-Wort = Zusammensetzung"
+  // but the combined word order must match the correct answer
+  const playerWord = selA && selB ? (correctAnswer.startsWith(selB) ? selB+selA : selA+selB) : '?';
+  const playerParts = `${selA||'?'} + ${selB||'?'}`;
+
+  // Reveal selections
+  const elA=document.getElementById('sela'), elB=document.getElementById('selb');
+  elA.textContent=selA||'?'; elA.className='phsel a chosen revealed';
+  elB.textContent=selB||'?'; elB.className='phsel b chosen revealed';
+
+  // Fill overlay
+  document.getElementById('ov-ans').textContent=playerParts;
+  document.getElementById('ov-parts').textContent= correct
+    ? correctAnswer
+    : `→ ${playerWord}`;
+
+  const os=document.getElementById('ov-status');
+  const sol=document.getElementById('ov-solution');
+
+  if(correct){
+    document.getElementById('ov-ans').style.color='var(--green)';
+    document.getElementById('ov-parts').style.color='var(--green)';
+    os.textContent='✅ Richtig!';
+    os.style.color='var(--green)';
+    sol.style.display='none';
+    document.getElementById('ov-btns').style.display='none';
+    document.getElementById('ov-correct-hint').style.display='none';
+    scores.team++;
+    flashScreen('g');
+    setTimeout(()=>{ document.getElementById('ov-btns').style.display='flex'; }, 2000);
+  } else {
+    document.getElementById('ov-ans').style.color='var(--red)';
+    document.getElementById('ov-parts').style.color='var(--dim)';
+    os.textContent='❌ Leider falsch';
+    os.style.color='var(--red)';
+    sol.style.display='block';
+    document.getElementById('ov-solution-word').textContent=correctAnswer;
+    document.getElementById('ov-btns').style.display='none';
+    document.getElementById('ov-correct-hint').style.display='none';
+    flashScreen('r');
+    setTimeout(()=>{ document.getElementById('ov-btns').style.display='flex'; }, 2000);
+  }
+
+  document.getElementById('overlay').classList.add('on');
+}
+
+// ── JUDGE ─────────────────────────────────────────────────
+function nextRound(){
+  document.getElementById('overlay').classList.remove('on');
+  document.getElementById('ov-btns').style.display='flex';
+  document.getElementById('ov-correct-hint').style.display='none';
+  currentRound++;
+  if(mpMode!=='solo') mpSend({type:'next'});
+  if(mpMode!=='solo') mpLoadRound(); else loadRound();
+}
+
+function tryAgain(){
+  document.getElementById('overlay').classList.remove('on');
+  document.getElementById('ov-correct-hint').style.display='none';
+  buzzed=null;buzzedA=false;buzzedB=false;roundActive=true;
+  selA=null;selB=null;
+  document.getElementById('sela').textContent='—';document.getElementById('sela').className='phsel a';
+  document.getElementById('selb').textContent='—';document.getElementById('selb').className='phsel b';
+  ['a','b'].forEach(p=>{
+    document.querySelectorAll(`#grid${p} .wb`).forEach(b=>{b.disabled=false;b.className='wb';});
+    const b=document.getElementById(`buzz${p}`);b.disabled=true;b.className='buzzb';
+  });
+}
+
+function skipRound(){
+  document.getElementById('overlay').classList.remove('on');
+  document.getElementById('ov-correct-hint').style.display='none';
+  document.getElementById('ov-btns').style.display='flex';
+  currentRound++;
+  if(mpMode!=='solo') mpSend({type:'next'});
+  if(mpMode!=='solo') mpLoadRound(); else loadRound();
+}
+
+// ── QUESTION ──────────────────────────────────────────────
+async function getQ(f){
+  return f.frage||`${f.loesungA}${f.loesungB} — was bin ich?`;
+}
+
+// ── HELPERS ───────────────────────────────────────────────
+function flashScreen(cls){
+  const f=document.getElementById('flash');f.className=cls;
+  setTimeout(()=>f.className='',500);
+}
+
+// ── END ───────────────────────────────────────────────────
+function endGame(){
+  if(mpMode!=='solo') mpSend({type:'end'});
+  showScreen('result-screen');
+  const total=shuffledFragen.length;
+  const correct=scores.team||0;
+  document.getElementById('fcards').innerHTML=`
+    <div class="fcard win" style="min-width:160px">
+      <div class="fn">Gemeinsam gelöst</div>
+      <div class="fp" style="color:var(--gold)">${correct} / ${total}</div>
+    </div>`;
+  if(correct===total){
+    document.getElementById('re-emoji').textContent='🏆';
+    document.getElementById('re-title').textContent='Perfekt!';
+    document.getElementById('re-sub').textContent=`Alle ${total} Runden richtig — ihr seid ein Dreamteam!`;
+  } else if(correct>=total/2){
+    document.getElementById('re-emoji').textContent='🎉';
+    document.getElementById('re-title').textContent='Gut gespielt!';
+    document.getElementById('re-sub').textContent=`${correct} von ${total} — starke Teamarbeit!`;
+  } else {
+    document.getElementById('re-emoji').textContent='💪';
+    document.getElementById('re-title').textContent='Weiter üben!';
+    document.getElementById('re-sub').textContent=`${correct} von ${total} — beim nächsten Mal klappt es besser!`;
+  }
+}
+
+function backToSetup(){
+  if(peer){ peer.destroy(); peer=null; conn=null; }
+  document.getElementById('game-screen').classList.remove('mp-mode');
+  showScreen('setup-screen');
+  renderList();
+}
+</script>
+</body>
+</html>
