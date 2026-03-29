@@ -298,53 +298,58 @@ ZUERST: Frage nach dem gewünschten Thema, falls es nicht bereits angegeben wurd
 ---
 
 SPIELPRINZIP:
-- Es gibt 9 Wörter für Spieler A (links) und 9 andere für Spieler B (rechts)
+- Es gibt 9 Wörter für Gruppe A und 9 andere für Gruppe B — insgesamt 18 Wörter
 - Diese 18 Wörter bleiben die GANZE Spielrunde gleich
 - Zu diesen 18 Wörtern werden mehrere Rätselfragen gestellt
-- Jede Frage hat eine andere Lösung — aber immer aus denselben 18 Wörtern
-- Beide Spieler wählen unabhängig je ein Wort aus ihrer Liste
-- Zusammengesetzt ergibt das Wortpaar die Antwort auf die Frage
-- Beispiel: Frage "Welches gehörnte Wildtier klettert über Felswände?" → A wählt STEIN, B wählt BOCK → STEINBOCK ✓
+- Jede Frage hat eine andere Lösung — ein Wortpaar aus Gruppe A und Gruppe B ergibt ein deutsches Kompositum
+- Beispiel: Frage "Welches gehörnte Wildtier klettert über Felswände?" → STEIN (aus A) + BOCK (aus B) → STEINBOCK ✓
 
-SCHLÜSSELPRINZIP — THEMATISCHE KOHÄRENZ & ZUFÄLLIGE AUFTEILUNG:
-Alle 18 Wörter sollen zum gleichen Themenfeld gehören. Im Spiel werden die 18 Wörter beim Start ZUFÄLLIG auf die zwei Spieler:innen aufgeteilt — jede:r bekommt 9 Wörter, die eine Mischung aus Anfängen und Enden sind. Die Aufteilung in aWorte/bWorte im JSON definiert nur welche Wörter zusammen ein Kompositum ergeben, NICHT wer welche Wörter bekommt.
-Gutes Beispiel (Thema: Schweizer Alpen):
-  aWorte: JUNG, EDEL, STEIN, WEISS, GOLD, ALPEN, ALT, BERG, GRAS
-  bWorte: FRAU, WEISS, BOCK, HORN, ADER, GLÜHEN, MANN, STEIGER, HÜPFER
-  → Lösungen: JUNGFRAU, EDELWEISS, STEINBOCK, WEISSHORN, GOLDADER, ALPENGLÜHEN, ALTMANN, BERGSTEIGER, GRASHÜPFER
-  Im Spiel könnte Spieler:in A z.B. JUNG, FRAU, STEIN, HORN, GOLD, MANN, ALT, STEIGER, GRAS bekommen
-  und Spieler:in B: EDEL, WEISS, BOCK, WEISS, ALPEN, ADER, GLÜHEN, BERG, HÜPFER
+SCHLÜSSELPRINZIP:
+Alle 18 Wörter gehören zum gleichen Themenfeld. Im Spiel werden sie ZUFÄLLIG aufgeteilt — beide Seiten bekommen eine Mischung aus Anfängen und Enden. aWorte/bWorte definiert nur, welche Wörter zusammen ein Kompositum ergeben.
 
-FORMAT (exakt so ausgeben, als valides JSON):
+FORMAT (exakt so ausgeben, als valides JSON, ohne Erklärung, ohne Backticks):
 {
-  "titel": "Thema des Sets",
-  "aWorte": ["WORT1", "WORT2", "WORT3", "WORT4", "WORT5", "WORT6", "WORT7", "WORT8", "WORT9"],
-  "bWorte": ["WORT1", "WORT2", "WORT3", "WORT4", "WORT5", "WORT6", "WORT7", "WORT8", "WORT9"],
+  "titel": "Thema",
+  "aWorte": ["WORT1","WORT2","WORT3","WORT4","WORT5","WORT6","WORT7","WORT8","WORT9"],
+  "bWorte": ["WORT1","WORT2","WORT3","WORT4","WORT5","WORT6","WORT7","WORT8","WORT9"],
   "fragen": [
-    { "frage": "Rätselfrage 1?", "loesungA": "WORT_AUS_A", "loesungB": "WORT_AUS_B", "loesung": "VOLLSTÄNDIGES_KOMPOSITUM" },
-    { "frage": "Rätselfrage 2?", "loesungA": "WORT_AUS_A", "loesungB": "WORT_AUS_B", "loesung": "VOLLSTÄNDIGES_KOMPOSITUM" }
+    {"frage":"Frage?","loesungA":"AUS_AWORTE","loesungB":"AUS_BWORTE","loesung":"KOMPOSITUM"}
   ]
 }
 
-REGELN:
-1. Alle 18 Wörter thematisch kohärent — sie alle gehören zum gleichen Themenfeld
-2. Mindestens 8 Fragen pro Set, Ziel sind 10 — jede Frage hat eine andere Lösung
-3. Die Frage umschreibt das Lösungswort bildhaft — nennt es aber NICHT direkt
-4. Fragen sind kurz (max. 12 Wörter), klingen wie echte Quizshow-Fragen
-5. loesungA muss in aWorte enthalten sein, loesungB in bWorte
-6. loesung ist das vollständige Kompositum in der richtigen Reihenfolge — das kann loesungA+loesungB ODER loesungB+loesungA sein, je nachdem was das echte Wort ergibt. Beispiel: loesungA=HOF, loesungB=SCHUL → loesung=SCHULHOF (B+A)
-7. Alle Wörter GROSSGESCHRIEBEN
-7. BEIDE Teile eines Kompositums müssen eigenständige deutsche Wörter sein:
-   STEIN ✓ + BOCK ✓ = STEINBOCK ✓
-   LEHR ✗ + ER ✗ = LEHRER ✗  (weder LEHR noch ER sind eigenständige Wörter)
-   SCHUL ✗ + HOF ✓  → erlaubt nur wenn SCHUL als Kurzform klar erkennbar ist — im Zweifel vermeiden
-8. Die Aufteilung A/B darf variieren — manchmal hat A den Wortanfang, manchmal B:
-   Beispiel: A=HOF, B=SCHUL → SCHULHOF (B ist Prefix). So wird das Spiel anspruchsvoller.
-9. Alle Lösungswörter müssen echte, im Duden stehende deutsche Komposita sein — nichts erfinden!
-   Vor dem Eintragen prüfen: Gibt es WORTAB wirklich? Und WORTBA? Nur das existierende nehmen.
-10. Die Frage muss exakt zur Lösung passen — nicht zu einem anderen möglichen Kompositum aus den Wörtern
+PFLICHTREGELN — alle müssen erfüllt sein:
 
-Gib NUR das JSON aus, ohne Erklärung, ohne Markdown-Backticks.`;
+A) WÖRTER:
+- Alle 18 Wörter thematisch kohärent (gleiches Themenfeld)
+- Alle Wörter GROSSGESCHRIEBEN
+- Kein Wort doppelt innerhalb einer Liste
+- KEIN Wort in beiden Listen: aWorte ∩ bWorte = leer (komplett verschieden!)
+- Beide Teile eines Kompositums müssen eigenständige deutsche Substantive sein:
+  ✓ STEIN + BOCK = STEINBOCK (beide eigenständige Wörter)
+  ✗ LEHR + ER = LEHRER (weder LEHR noch ER sind Substantive)
+  ✗ SCHUL + HOF — SCHUL ist keine eigenständige Form, besser vermeiden
+
+B) LÖSUNGEN:
+- Jede Lösung ist einmalig — kein Lösungspaar doppelt
+- loesungA muss in aWorte stehen, loesungB in bWorte
+- loesung ist das vollständige, korrekte Kompositum (loesungA+loesungB ODER loesungB+loesungA, je was existiert)
+- Alle Lösungswörter müssen echte deutsche Wörter sein — im Duden oder DWDS nachprüfen!
+  ✓ HANDBALL, LAUTSPRECHER, STEINBOCK
+  ✗ SIEGPOKAL (heisst SIEGERPOKAL), ✗ SCHNEEHORN (existiert nicht)
+
+C) FRAGEN:
+- Mindestens 8 Fragen, Ziel 10
+- Jede Frage umschreibt das Lösungswort bildhaft, ohne es zu nennen
+- Kurz (max. 12 Wörter), klingt wie eine Quizshow-Frage
+- Passt NUR zur einen richtigen Lösung, nicht zu anderen möglichen Komposita
+
+SELBSTPRÜFUNG — vor der Ausgabe zwingend durchführen:
+1. Sind alle 18 Wörter verschieden? (aWorte ∩ bWorte = leer, keine Duplikate)
+2. Ist jede loesungA in aWorte, jede loesungB in bWorte?
+3. Sind alle loesung-Werte einmalig?
+4. Existieren alle Lösungswörter wirklich auf Deutsch?
+5. Passen alle Fragen exakt zur Lösung?
+→ Fehler gefunden? Korrigieren, dann erst ausgeben.`;
 
 function showPrompt(){
   const card=document.getElementById('prompt-card');
@@ -834,7 +839,9 @@ function resolve(){
     os.textContent='✅ Richtig!';
     os.style.color='var(--green)';
     sol.style.display='none';
-    document.getElementById('ov-btns').innerHTML='<button class="btn btn-green" onclick="nextRound()">▶ Nächste Frage</button>';
+    const isLast = currentRound >= shuffledFragen.length - 1;
+    const nextLabel = isLast ? '🏆 Auswertung' : '▶ Nächste Frage';
+    document.getElementById('ov-btns').innerHTML=`<button class="btn btn-green" onclick="nextRound()">${nextLabel}</button>`;
     document.getElementById('ov-btns').style.display='none';
     document.getElementById('ov-correct-hint').style.display='none';
     scores.team++;
@@ -847,7 +854,9 @@ function resolve(){
     os.style.color='var(--red)';
     sol.style.display='block';
     document.getElementById('ov-solution-word').textContent=correctAnswer;
-    document.getElementById('ov-btns').innerHTML='<button class="btn btn-green" onclick="nextRound()">▶ Nächste Frage</button>';
+    const isLast2 = currentRound >= shuffledFragen.length - 1;
+    const nextLabel2 = isLast2 ? '🏆 Auswertung' : '▶ Nächste Frage';
+    document.getElementById('ov-btns').innerHTML=`<button class="btn btn-green" onclick="nextRound()">${nextLabel2}</button>`;
     document.getElementById('ov-btns').style.display='none';
     document.getElementById('ov-correct-hint').style.display='none';
     flashScreen('r');
