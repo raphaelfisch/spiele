@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Kippkegel · Logikspiel</title>
+<style>
+  :root{
+    --paper:#F4EFE4; --paper-2:#EAE2D2; --ink:#2A2722; --muted:#7A7263;
+    --marker:#2E86C9;
+    --blue:#2C6BD6; --blue-hi:#5C93EA; --blue-lo:#1C4D9E;
+    --red:#CC362C; --red-hi:#E45A4F; --red-lo:#992018;
+    --wood:#C79A5E; --wood-hi:#E3C28C; --wood-lo:#8E662F;
+    --good:#2F9E59;
+    --shadow:0 18px 36px -22px rgba(40,33,20,.55);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;height:100%;}
+  body{
+    font-family:"Trebuchet MS","Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink);
+    background:radial-gradient(125% 90% at 70% -10%, #FBF8F1 0%, var(--paper) 45%, var(--paper-2) 100%);
+    min-height:100%; display:flex; flex-direction:column; align-items:center;
+    padding:clamp(12px,3vw,24px); overflow-x:hidden;
+  }
+  .wrap{width:100%;max-width:540px;display:flex;flex-direction:column;gap:clamp(10px,2.6vw,16px);}
+
+  header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+  .title{flex:1 1 280px;}
+  .title h1{margin:0;font-size:clamp(1.45rem,5.6vw,2.1rem);font-weight:800;letter-spacing:-.02em;line-height:1.02;}
+  .title h1 .dot{color:var(--red);}
+  .title p{margin:.32em 0 0;color:var(--muted);font-size:clamp(.8rem,2.4vw,.92rem);}
+
+  .controls{display:flex;gap:7px;align-items:center;flex-wrap:wrap;}
+  .seg{display:inline-flex;background:#fff;border:1.5px solid #DfD6C4;border-radius:999px;padding:3px;box-shadow:var(--shadow);}
+  .seg button{border:0;background:transparent;color:var(--muted);font:inherit;font-weight:700;font-size:.82rem;padding:6px 11px;border-radius:999px;cursor:pointer;transition:.15s;}
+  .seg button.on{background:var(--marker);color:#fff;}
+  .icon-btn{width:42px;height:42px;border-radius:50%;border:1.5px solid #DfD6C4;background:#fff;font-size:1.1rem;cursor:pointer;box-shadow:var(--shadow);display:grid;place-items:center;transition:.15s;}
+  .icon-btn:active{transform:scale(.92);}
+  .icon-btn:disabled{opacity:.4;cursor:default;}
+  .icon-btn.on{background:var(--marker);color:#fff;border-color:var(--marker);}
+  .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%) translateY(18px);
+    background:rgba(42,39,34,.93);color:#fff;padding:10px 16px;border-radius:999px;
+    font-size:.85rem;font-weight:600;opacity:0;transition:.25s;z-index:50;pointer-events:none;
+    max-width:90vw;text-align:center;box-shadow:var(--shadow);}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  .sheet{position:relative;width:100%;background:linear-gradient(180deg,#FFFDF8,#FBF7EE);
+    border-radius:10px;box-shadow:var(--shadow),inset 0 0 0 1px rgba(0,0,0,.03);padding:clamp(14px,4vw,24px);
+    perspective:1100px;}
+  .board-area{position:relative;width:100%;aspect-ratio:1/1;touch-action:none;
+    transform-style:preserve-3d;transform-origin:center center;}
+  .grid-svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
+  .grid-svg path,.grid-svg line{stroke:var(--marker);fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;}
+  .grid-svg .target-x{stroke-width:3.4;opacity:.92;}
+
+  .piece{position:absolute;display:grid;place-items:center;
+    transition:left .42s cubic-bezier(.33,.06,.42,1), top .42s cubic-bezier(.33,.06,.42,1), transform .12s;
+    will-change:left,top;}
+  .piece.peg{filter:drop-shadow(0 6px 5px rgba(40,30,15,.28));}
+  .piece svg{width:100%;height:100%;display:block;}
+  .block{border-radius:18%;background:
+      linear-gradient(150deg,var(--wood-hi),var(--wood) 45%,var(--wood-lo));
+      box-shadow:inset 0 2px 3px rgba(255,255,255,.35),inset 0 -4px 6px rgba(0,0,0,.28),0 5px 7px rgba(40,30,15,.3);
+      border:1px solid rgba(80,55,20,.35);}
+  .block::after{content:"";position:absolute;inset:14% 18%;border-radius:10%;
+      background:repeating-linear-gradient(110deg,rgba(120,80,30,.0) 0 5px,rgba(120,80,30,.10) 5px 7px);}
+  .piece.red.win-pop{animation:pop .55s ease;}
+  @keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.2)}100%{transform:scale(1)}}
+
+  .status{display:flex;justify-content:center;gap:20px;color:var(--muted);font-weight:700;font-size:.92rem;}
+  .status b{color:var(--ink);font-variant-numeric:tabular-nums;}
+
+  .hint{text-align:center;color:var(--muted);font-size:.82rem;margin:2px 0 0;}
+
+  .win{position:fixed;inset:0;display:none;place-items:center;background:rgba(34,30,24,.34);backdrop-filter:blur(2px);z-index:30;padding:20px;}
+  .win.show{display:grid;}
+  .win-card{background:#FFFDF8;border-radius:18px;padding:28px 24px;text-align:center;max-width:330px;width:100%;
+    box-shadow:0 30px 70px -20px rgba(0,0,0,.5);animation:rise .4s ease;}
+  @keyframes rise{from{transform:translateY(18px);opacity:0}to{transform:none;opacity:1}}
+  .win-card h2{margin:0 0 6px;font-size:1.55rem;}
+  .win-card p{margin:0 0 18px;color:var(--muted);}
+  .win-card .stat{font-weight:800;color:var(--ink);}
+  .win-card .perfect{color:var(--good);}
+  .btn-main{border:0;background:var(--marker);color:#fff;font:inherit;font-weight:800;font-size:1rem;padding:12px 22px;border-radius:999px;cursor:pointer;box-shadow:var(--shadow);transition:.15s;}
+  .btn-main:active{transform:scale(.95);}
+  #confetti{position:fixed;inset:0;pointer-events:none;z-index:40;}
+
+  .rules-card{max-width:380px;text-align:left;}
+  .rules-card h2{text-align:center;}
+  .rules-card .goal{text-align:center;font-size:1.05rem;margin:0 0 16px;color:var(--ink);}
+  .rules-card .rule{display:flex;gap:11px;align-items:flex-start;margin:0 0 14px;font-size:.92rem;line-height:1.4;color:var(--ink);}
+  .rules-card .rule .ri{font-size:1.3rem;line-height:1.1;flex:none;width:1.5em;text-align:center;}
+  .rules-card .gestures{flex-direction:column;gap:9px;background:#F5EFE2;border-radius:12px;padding:12px 14px;}
+  .rules-card .gestures>div{display:flex;flex-direction:column;}
+  .rules-card .gestures .g{font-weight:800;color:var(--marker);font-size:.98rem;}
+  .rules-card .gestures small{color:var(--muted);font-size:.82rem;}
+  .rules-card .btn-main{display:block;width:100%;margin-top:4px;}
+  @media (prefers-reduced-motion: reduce){ .piece{transition:left .01s,top .01s;} *{animation-duration:.01s!important;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="title">
+      <h1>Kippkegel<span class="dot">.</span></h1>
+      <p>Kippe das Brett – <strong>alle</strong> Kegel rutschen gleichzeitig. Bring den roten auf das <strong>X</strong>.</p>
+    </div>
+    <div class="controls">
+      <div class="seg" id="diffSeg">
+        <button data-d="Leicht" class="on">Leicht</button>
+        <button data-d="Mittel">Mittel</button>
+        <button data-d="Schwer">Schwer</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="sheet">
+    <div class="board-area" id="board">
+      <svg class="grid-svg" id="grid" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+    </div>
+  </div>
+
+  <div class="status">
+    <span>Züge: <b id="moves">0</b></span>
+    <span>Optimal: <b id="par">–</b></span>
+  </div>
+
+  <div class="controls" style="justify-content:center;gap:10px;">
+    <button class="icon-btn" id="undoBtn" title="Zug zurück" aria-label="Zug zurück">↶</button>
+    <button class="icon-btn" id="resetBtn" title="Rätsel neu starten" aria-label="neu starten">↺</button>
+    <button class="icon-btn" id="newBtn" title="Neues Rätsel" aria-label="neues Rätsel">✦</button>
+    <button class="icon-btn" id="soundBtn" title="Ton" aria-label="Ton an/aus">🔊</button>
+    <button class="icon-btn" id="tiltBtn" title="Neigungssteuerung (Handy kippen)" aria-label="Neigungssteuerung">📱</button>
+    <button class="icon-btn" id="helpBtn" title="So geht's" aria-label="Anleitung">?</button>
+  </div>
+  <p class="hint"><strong>Handy:</strong> über das Brett wischen · <strong>PC:</strong> mit den Pfeiltasten</p>
+</div>
+
+<div class="win" id="win">
+  <div class="win-card">
+    <h2>Geschafft! 🎉</h2>
+    <p id="winMsg"></p>
+    <button class="btn-main" id="againBtn">Nächstes Rätsel</button>
+  </div>
+</div>
+<canvas id="confetti"></canvas>
+<div class="toast" id="toast"></div>
+
+<div class="win" id="rules">
+  <div class="win-card rules-card">
+    <h2>So geht's</h2>
+    <p class="goal">Bring den <b style="color:var(--red)">roten Kegel</b> auf das <b>X</b>.</p>
+    <div class="rule">
+      <span>Du kippst das ganze Brett. Beim Kippen rutschen <b>alle Kegel gleichzeitig</b> in eine Richtung – bis sie an einem Rand, einem Holzklotz oder einem anderen Kegel anstoßen.</span>
+    </div>
+    <div class="rule gestures">
+      <div><span class="g">👆 wischen</span><small>am Handy: über das Brett in eine Richtung</small></div>
+      <div><span class="g">⌨︎ Pfeiltasten</span><small>am PC (oder W A S D) – gedrückt halten neigt das Brett</small></div>
+      <div><span class="g">📱 Handy kippen</span><small>optional: Schalter 📱 antippen, dann das echte Handy neigen</small></div>
+    </div>
+    <div class="rule">
+      <span class="ri">🔵</span>
+      <span>Die <b>blauen Kegel</b> rutschen mit – nutze sie als Stopper für den roten. Die <b>Holzklötze</b> stehen fest.</span>
+    </div>
+    <button class="btn-main" id="rulesOk">Los geht's</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const boardEl=document.getElementById("board");
+  const gridSvg=document.getElementById("grid");
+  const movesEl=document.getElementById("moves");
+  const parEl=document.getElementById("par");
+  const winEl=document.getElementById("win");
+  const winMsg=document.getElementById("winMsg");
+  const undoBtn=document.getElementById("undoBtn");
+
+  // difficulty -> [minMoves,maxMoves,nFixed,nBlue,N]
+  const CFG={ Leicht:[3,6,4,2,5], Mittel:[7,11,6,3,5], Schwer:[11,16,7,3,5] };
+  let diff="Leicht", N=5;
+  let par=0, moves=0, solved=false, soundOn=true;
+  let target=0;
+  let pieces=[];          // {id,type:'red'|'blue'|'fixed',cell,el}
+  let idBoard=[];         // cell -> id | -1
+  let order={};           // precomputed travel order per dir
+  let history=[];         // snapshots of {map:[cell per id], moves}
+  let initialSnap=null;
+
+  const idx=(r,c)=>r*N+c, rc=i=>[Math.floor(i/N),i%N];
+  const DIR={L:[0,-1],R:[0,1],U:[-1,0],D:[1,0]};
+
+  function buildOrders(){
+    order={};
+    for(const d of ['L','R','U','D']){
+      const arr=[]; for(let r=0;r<N;r++)for(let c=0;c<N;c++)arr.push(idx(r,c));
+      const [dr,dc]=DIR[d];
+      arr.sort((a,b)=>{const[ar,ac]=rc(a),[br,bc]=rc(b);
+        if(dr<0)return ar-br; if(dr>0)return br-ar; if(dc<0)return ac-bc; return bc-ac;});
+      order[d]=arr;
+    }
+  }
+
+  /* ---------- pure logic on code arrays (for generator/solver) ---------- */
+  function tiltCodes(board,dir){
+    const b=board.slice(); const[dr,dc]=DIR[dir]; let moved=true;
+    while(moved){ moved=false;
+      for(const i of order[dir]){ const v=b[i]; if(v!=='B'&&v!=='R')continue;
+        const[r,c]=rc(i),nr=r+dr,nc=c+dc;
+        if(nr<0||nr>=N||nc<0||nc>=N)continue;
+        const j=idx(nr,nc); if(b[j]==='.'){b[j]=v;b[i]='.';moved=true;} }
+    }
+    return b;
+  }
+  function codeKey(b){ let R=-1; const Bs=[];
+    for(let i=0;i<b.length;i++){ if(b[i]==='R')R=i; else if(b[i]==='B')Bs.push(i);} return R+'|'+Bs.join(','); }
+  function solveLen(board,tg,maxDepth,nodeCap){
+    if(board.indexOf('R')===tg) return 0;
+    let frontier=[board]; const seen=new Set([codeKey(board)]); let depth=0,nodes=1;
+    while(frontier.length && depth<maxDepth){
+      depth++; const next=[];
+      for(const st of frontier) for(const d of ['L','R','U','D']){
+        const nb=tiltCodes(st,d), k=codeKey(nb);
+        if(seen.has(k))continue; seen.add(k); nodes++;
+        if(nb.indexOf('R')===tg) return depth;
+        next.push(nb); if(nodes>nodeCap) return -2;
+      }
+      frontier=next;
+    }
+    return -1;
+  }
+  function shuffle(a){for(let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]];}return a;}
+  function makeLevel(minM,maxM,nFixed,nBlue,attempts){
+    for(let t=0;t<attempts;t++){
+      const cells=shuffle([...Array(N*N).keys()]); let p=0;
+      const board=Array(N*N).fill('.'); const tg=cells[p++];
+      for(let i=0;i<nFixed;i++) board[cells[p++]]='F';
+      const redC=cells[p++]; if(redC===tg)continue; board[redC]='R';
+      for(let i=0;i<nBlue;i++) board[cells[p++]]='B';
+      const len=solveLen(board,tg,maxM,60000);
+      if(len>=minM && len<=maxM) return {board,target:tg,par:len};
+    }
+    return null;
+  }
+
+  /* ---------- artwork ---------- */
+  function pegSVG(color){
+    const isRed=color==="red";
+    const body=isRed?"var(--red)":"var(--blue)", hi=isRed?"var(--red-hi)":"var(--blue-hi)", lo=isRed?"var(--red-lo)":"var(--blue-lo)";
+    return `<svg viewBox="0 0 120 150" xmlns="http://www.w3.org/2000/svg"><defs>
+      <radialGradient id="g_${color}" cx="38%" cy="30%" r="75%">
+      <stop offset="0%" stop-color="${hi}"/><stop offset="55%" stop-color="${body}"/><stop offset="100%" stop-color="${lo}"/>
+      </radialGradient></defs>
+      <path d="M48 54 C40 66 39 80 45 94 C49 106 36 113 30 126 Q29 132 38 132 L82 132 Q91 132 90 126 C84 113 71 106 75 94 C81 80 80 66 72 54 Z" fill="url(#g_${color})"/>
+      <circle cx="60" cy="36" r="25" fill="url(#g_${color})"/>
+      <ellipse cx="50" cy="28" rx="10" ry="7" fill="#fff" opacity="0.42"/></svg>`;
+  }
+
+  /* ---------- grid drawing ---------- */
+  function jit(v,a){return v+(Math.random()*2-1)*a;}
+  function drawGrid(){
+    const S=100,m=7,span=S-2*m,step=span/N; let p="";
+    for(let k=0;k<=N;k++){
+      const x=m+step*k; p+=`<path d="M ${jit(x,.5)} ${jit(m,.7)} `;
+      for(let s=1;s<=4;s++){const y=m+span*s/4;p+=`L ${jit(x,.8)} ${jit(y,.5)} `;} p+=`"/>`;
+      const y=m+step*k; p+=`<path d="M ${jit(m,.7)} ${jit(y,.5)} `;
+      for(let s=1;s<=4;s++){const xx=m+span*s/4;p+=`L ${jit(xx,.5)} ${jit(y,.8)} `;} p+=`"/>`;
+    }
+    const [tr,tc]=rc(target); const cx=m+step*tc, cy=m+step*tr, pad=step*0.22;
+    const x0=cx+pad,y0=cy+pad,x1=cx+step-pad,y1=cy+step-pad;
+    p+=`<line class="target-x" x1="${jit(x0,.5)}" y1="${jit(y0,.5)}" x2="${jit(x1,.5)}" y2="${jit(y1,.5)}"/>`;
+    p+=`<line class="target-x" x1="${jit(x1,.5)}" y1="${jit(y0,.5)}" x2="${jit(x0,.5)}" y2="${jit(y1,.5)}"/>`;
+    gridSvg.innerHTML=p;
+  }
+
+  /* ---------- layout ---------- */
+  function geom(){
+    const W=boardEl.clientWidth, m=0.07*W, span=W-2*m, step=span/N;
+    return {m,span,step};
+  }
+  function place(pc){
+    const g=geom(), [r,c]=rc(pc.cell);
+    const cx=g.m+g.step*(c+0.5), cy=g.m+g.step*(r+0.5);
+    if(pc.type==="fixed"){
+      const s=g.step*0.62; pc.el.style.width=s+"px"; pc.el.style.height=s+"px";
+      pc.el.style.left=(cx-s/2)+"px"; pc.el.style.top=(cy-s/2)+"px";
+    }else{
+      const w=g.step*0.62, h=w*150/120;
+      pc.el.style.width=w+"px"; pc.el.style.height=h+"px";
+      pc.el.style.left=(cx-w/2)+"px"; pc.el.style.top=(cy-h/2-h*0.06)+"px";
+    }
+  }
+  function relayout(){ drawGrid(); pieces.forEach(place); }
+
+  /* ---------- build a level ---------- */
+  function loadLevel(){
+    const [mn,mx,nf,nb,n]=CFG[diff]; N=n; buildOrders();
+    let lv=makeLevel(mn,mx,nf,nb,900);
+    if(!lv) lv=makeLevel(2,mx+4,nf,nb,400); // graceful fallback
+    target=lv.target;
+    boardEl.querySelectorAll(".piece").forEach(e=>e.remove());
+    pieces=[]; idBoard=Array(N*N).fill(-1); let id=0;
+    for(let i=0;i<lv.board.length;i++){
+      const code=lv.board[i]; if(code===".")continue;
+      const type=code==='R'?'red':code==='B'?'blue':'fixed';
+      const el=document.createElement("div");
+      if(type==='fixed'){ el.className="piece block"; }
+      else{ el.className="piece peg "+type; el.innerHTML=pegSVG(type); }
+      boardEl.appendChild(el);
+      const pc={id,type,cell:i,el}; pieces.push(pc); idBoard[i]=id; id++;
+    }
+    par=lv.par; parEl.textContent=par;
+    moves=0; movesEl.textContent="0"; solved=false;
+    history=[]; updateUndo();
+    initialSnap=snapshot();
+    relayout();
+  }
+
+  function snapshot(){ const map={}; pieces.forEach(p=>map[p.id]=p.cell); return {map,moves}; }
+  function restore(snap){
+    pieces.forEach(p=>p.cell=snap.map[p.id]);
+    idBoard=Array(N*N).fill(-1); pieces.forEach(p=>idBoard[p.cell]=p.id);
+    moves=snap.moves; movesEl.textContent=moves; solved=false;
+    pieces.forEach(p=>p.el.classList.remove("win-pop"));
+    pieces.forEach(place);
+  }
+  function updateUndo(){ undoBtn.disabled = history.length===0; }
+
+  /* ---------- tilt (with identities, for animation) ---------- */
+  function typeOf(id){ return pieces[id].type; }
+
+  const reduceMotion=()=>matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let tiltActive=false;
+  function holdTilt(dir){            // tilt the board and KEEP it tilted
+    if(reduceMotion()) return;
+    const tip={L:"rotateY(-9deg)",R:"rotateY(9deg)",U:"rotateX(9deg)",D:"rotateX(-9deg)"}[dir];
+    boardEl.style.transition="transform .16s ease-out";
+    boardEl.style.transform=tip;
+    tiltActive=true;
+  }
+  function releaseTilt(){            // straighten the board (on key/finger release)
+    if(!tiltActive) return;
+    boardEl.style.transition="transform .32s cubic-bezier(.3,.85,.4,1)";
+    boardEl.style.transform="none";
+    tiltActive=false;
+  }
+
+  function applyTilt(dir){           // resolve one roll (the actual move)
+    if(solved) return;
+    const before=snapshot();
+    const [dr,dc]=DIR[dir]; let moved=true, any=false;
+    while(moved){ moved=false;
+      for(const i of order[dir]){ const id=idBoard[i]; if(id<0)continue;
+        if(typeOf(id)==='fixed')continue;
+        const[r,c]=rc(i),nr=r+dr,nc=c+dc;
+        if(nr<0||nr>=N||nc<0||nc>=N)continue;
+        const j=idx(nr,nc);
+        if(idBoard[j]<0){ idBoard[j]=id; idBoard[i]=-1; pieces[id].cell=j; moved=true; any=true; }
+      }
+    }
+    if(!any){ blip(220,.05); return; }       // nothing slid
+    history.push(before); updateUndo();
+    moves++; movesEl.textContent=moves;
+    pieces.forEach(place);
+    blip(440+Math.random()*40,.05);
+    const red=pieces.find(p=>p.type==='red');
+    if(red.cell===target) win(red);
+  }
+
+  // press = tilt (held) + one roll; release = straighten
+  function press(dir){ holdTilt(dir); applyTilt(dir); }
+
+  /* ---------- toast ---------- */
+  const toastEl=document.getElementById("toast"); let toastT=null;
+  function toast(msg){ toastEl.textContent=msg; toastEl.classList.add("show");
+    clearTimeout(toastT); toastT=setTimeout(()=>toastEl.classList.remove("show"),2800); }
+
+  /* ---------- tilt sensor (DeviceOrientation) ---------- */
+  const tiltBtn=document.getElementById("tiltBtn");
+  let sensorOn=false, gamma0=null, beta0=null, armed=true, gotEvent=false;
+  const THRESH=15, DEAD=7;
+
+  function onOrient(e){
+    if(e.gamma==null && e.beta==null) return;
+    gotEvent=true;
+    if(gamma0===null){ gamma0=e.gamma||0; beta0=e.beta||0; }
+    const rg=(e.gamma||0)-gamma0;     // left/right
+    const rb=(e.beta||0)-beta0;       // front/back
+    const ax=Math.abs(rg), ay=Math.abs(rb), mag=Math.max(ax,ay);
+    if(armed && mag>THRESH && !solved){
+      // one direction drives BOTH the board tilt and the roll (same as a swipe)
+      const dir = ax>ay ? (rg>0?'R':'L') : (rb>0?'D':'U');
+      armed=false; press(dir);
+    }else if(mag<DEAD){
+      if(!armed) releaseTilt();        // phone back to level -> straighten board & reload
+      armed=true;
+    }
+  }
+
+  async function enableSensor(){
+    try{
+      if(typeof DeviceOrientationEvent!=="undefined" && typeof DeviceOrientationEvent.requestPermission==="function"){
+        const res=await DeviceOrientationEvent.requestPermission();
+        if(res!=="granted"){ toast("Sensor-Zugriff abgelehnt"); return false; }
+      }
+    }catch(err){ toast("Sensor nicht verfügbar (evtl. nur über https)"); return false; }
+    gamma0=null; beta0=null; armed=true; gotEvent=false;
+    window.addEventListener("deviceorientation", onOrient);
+    setTimeout(()=>{ if(sensorOn && !gotEvent){ toast("Kein Sensor-Signal – Seite über https öffnen"); setSensor(false); } }, 1500);
+    toast("Neigungssteuerung an – kippe das Handy");
+    return true;
+  }
+  function disableSensor(){
+    window.removeEventListener("deviceorientation", onOrient);
+    boardEl.style.transition="transform .3s cubic-bezier(.3,.85,.4,1)";
+    boardEl.style.transform="none";
+  }
+  async function setSensor(on){
+    if(on){ const ok=await enableSensor(); if(!ok){ on=false; } }
+    else { disableSensor(); }
+    sensorOn=on; tiltBtn.classList.toggle("on",on);
+  }
+  tiltBtn.addEventListener("click",()=>setSensor(!sensorOn));
+
+  function win(red){
+    solved=true; red.el.classList.add("win-pop");
+    const perfect=moves===par;
+    winMsg.innerHTML = perfect
+      ? `<span class="stat perfect">Perfekt – optimale Lösung in ${moves} Zügen!</span>`
+      : `Gelöst in <span class="stat">${moves}</span> Zügen.<br>Optimal wären <span class="stat">${par}</span>.`;
+    setTimeout(()=>{ winEl.classList.add("show"); confettiBurst(); chime(); }, 320);
+  }
+
+  /* ---------- sound ---------- */
+  let actx=null;
+  function ac(){ if(!actx){try{actx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){actx=null;}} return actx; }
+  function blip(f,dur){ if(!soundOn)return; const a=ac(); if(!a)return;
+    const o=a.createOscillator(),g=a.createGain(); o.type="sine"; o.frequency.value=f;
+    g.gain.setValueAtTime(.0001,a.currentTime); g.gain.exponentialRampToValueAtTime(.15,a.currentTime+.01);
+    g.gain.exponentialRampToValueAtTime(.0001,a.currentTime+dur);
+    o.connect(g); g.connect(a.destination); o.start(); o.stop(a.currentTime+dur+.02); }
+  function chime(){ if(!soundOn)return; [523,659,784,1047].forEach((f,i)=>setTimeout(()=>blip(f,.22),i*110)); }
+
+  /* ---------- confetti ---------- */
+  const cv=document.getElementById("confetti"), cx=cv.getContext("2d");
+  let bits=[],raf=null;
+  function size(){cv.width=innerWidth;cv.height=innerHeight;}
+  size(); addEventListener("resize",()=>{size();relayout();});
+  function confettiBurst(){ const cols=["#2C6BD6","#CC362C","#2F9E59","#F2B705","#7C4DFF","#2E86C9"]; bits=[];
+    for(let i=0;i<150;i++)bits.push({x:Math.random()*cv.width,y:-20-Math.random()*cv.height*.4,r:5+Math.random()*7,c:cols[i%cols.length],vy:2+Math.random()*3,vx:-2+Math.random()*4,rot:Math.random()*6,vr:-.2+Math.random()*.4});
+    if(!raf)anim(); setTimeout(()=>bits=[],4200); }
+  function anim(){ cx.clearRect(0,0,cv.width,cv.height);
+    bits.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.rot+=p.vr;p.vy+=.03;cx.save();cx.translate(p.x,p.y);cx.rotate(p.rot);cx.fillStyle=p.c;cx.fillRect(-p.r/2,-p.r/2,p.r,p.r*1.4);cx.restore();});
+    if(bits.length)raf=requestAnimationFrame(anim); else{cx.clearRect(0,0,cv.width,cv.height);raf=null;} }
+
+  /* ---------- input ---------- */
+  const KEYMAP={ArrowUp:'U',ArrowDown:'D',ArrowLeft:'L',ArrowRight:'R',w:'U',s:'D',a:'L',d:'R',W:'U',S:'D',A:'L',D:'R'};
+  let heldKey=null;
+  addEventListener("keydown",e=>{
+    const dir=KEYMAP[e.key]; if(!dir) return;
+    e.preventDefault();
+    if(e.repeat) return;            // ignore auto-repeat: one roll per press
+    heldKey=e.key; press(dir);      // tilt stays until keyup
+  });
+  addEventListener("keyup",e=>{
+    if(KEYMAP[e.key] && e.key===heldKey){ heldKey=null; releaseTilt(); }
+  });
+  addEventListener("blur",releaseTilt);   // safety: never get stuck tilted
+
+  // touch: swipe sets the direction, board stays tilted while the finger rests
+  let sx=0,sy=0,touchDir=null;
+  boardEl.addEventListener("touchstart",e=>{if(sensorOn)return;const t=e.changedTouches[0];sx=t.clientX;sy=t.clientY;touchDir=null;},{passive:true});
+  boardEl.addEventListener("touchmove",e=>{
+    if(sensorOn||touchDir!==null) return;
+    const t=e.changedTouches[0], dx=t.clientX-sx, dy=t.clientY-sy;
+    if(Math.max(Math.abs(dx),Math.abs(dy))<24) return;
+    touchDir = Math.abs(dx)>Math.abs(dy) ? (dx>0?'R':'L') : (dy>0?'D':'U');
+    press(touchDir);
+  },{passive:true});
+  boardEl.addEventListener("touchend",()=>{if(sensorOn)return;touchDir=null;releaseTilt();},{passive:true});
+  boardEl.addEventListener("touchcancel",()=>{if(sensorOn)return;touchDir=null;releaseTilt();},{passive:true});
+
+  undoBtn.addEventListener("click",()=>{ if(history.length){ restore(history.pop()); updateUndo(); blip(330,.05); } });
+  document.getElementById("resetBtn").addEventListener("click",()=>{ winEl.classList.remove("show"); if(initialSnap){history=[];updateUndo();restore(initialSnap);} });
+  document.getElementById("newBtn").addEventListener("click",()=>{ winEl.classList.remove("show"); loadLevel(); });
+  document.getElementById("againBtn").addEventListener("click",()=>{ winEl.classList.remove("show"); loadLevel(); });
+  document.getElementById("soundBtn").addEventListener("click",e=>{ soundOn=!soundOn; e.currentTarget.textContent=soundOn?"🔊":"🔇"; if(soundOn)blip(660,.08); });
+  document.getElementById("diffSeg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
+    document.querySelectorAll("#diffSeg button").forEach(x=>x.classList.toggle("on",x===b));
+    diff=b.dataset.d; winEl.classList.remove("show"); loadLevel();});
+
+  const rulesEl=document.getElementById("rules");
+  document.getElementById("helpBtn").addEventListener("click",()=>rulesEl.classList.add("show"));
+  document.getElementById("rulesOk").addEventListener("click",()=>rulesEl.classList.remove("show"));
+
+  buildOrders(); loadLevel();
+  rulesEl.classList.add("show");   // show the how-to on first load
+})();
+</script>
+</body>
+</html>
