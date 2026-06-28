@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Karo-Karacho</title>
+<style>
+  :root{
+    --paper:#F2EEE6; --paper-2:#E9E3D6; --ink:#211F1A; --muted:#6F6A5E;
+    --card:#FCFAF5; --tile-black:#1A1A18; --tile-white:#FBFAF6; --line:#23231F;
+    --wood:#E3BC83; --wood-dark:#C89A5C; --wood-edge:#A87C42;
+    --sand:#2E8FE0; --sand-deep:#1E6FC4; --blue:#2E6FE0;
+    --good:#36955F; --good-soft:#5fbd86;
+    --shadow: 0 18px 40px -22px rgba(40,33,20,.55);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink);
+    background:radial-gradient(120% 90% at 70% 0%, #FBF8F1 0%, var(--paper) 45%, var(--paper-2) 100%);
+    min-height:100vh;-webkit-font-smoothing:antialiased;padding:clamp(14px,3vw,34px);
+  }
+  .wrap{max-width:760px;margin:0 auto;}
+  header{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:clamp(18px,4vw,34px);}
+  .title h1{font-size:clamp(1.7rem,5.5vw,2.6rem);margin:0;font-weight:800;letter-spacing:-.02em;line-height:1;}
+  .title h1 .mark{display:inline-block;width:.62em;height:.62em;margin-right:.28em;background:var(--ink);position:relative;vertical-align:baseline;border-radius:3px;}
+  .title h1 .mark::after{content:"";position:absolute;right:0;bottom:0;width:50%;height:50%;background:var(--tile-white);border-top:2px solid var(--ink);border-left:2px solid var(--ink);}
+  .title p{margin:.5em 0 0;color:var(--muted);font-size:clamp(.85rem,2.4vw,.98rem);max-width:36ch;}
+
+  .clock{display:flex;flex-direction:column;align-items:center;gap:6px;flex:0 0 auto;}
+  .hourglass{width:46px;height:64px;display:block;overflow:visible;}
+  .timer{font-variant-numeric:tabular-nums;font-weight:700;font-size:.98rem;letter-spacing:.02em;}
+  .best{font-size:.7rem;color:var(--muted);}
+
+  .eyebrow{font-size:.7rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 10px;display:flex;align-items:center;gap:8px;}
+  .eyebrow::after{content:"";flex:1;height:1px;background:rgba(33,31,26,.14);}
+
+  .target-stage{display:flex;justify-content:center;margin-bottom:6px;}
+  .card{background:var(--card);padding:14px;border-radius:6px;box-shadow:var(--shadow);width:min(58vw,260px);}
+  .ledge{width:min(64vw,300px);height:16px;margin:0 auto;background:linear-gradient(var(--wood),var(--wood-dark));border-radius:0 0 5px 5px;box-shadow:0 10px 18px -10px rgba(120,86,30,.6), inset 0 2px 0 rgba(255,255,255,.3);position:relative;}
+  .ledge::before{content:"";position:absolute;inset:3px 18% auto;top:-3px;height:3px;background:var(--wood-edge);opacity:.4;border-radius:2px;}
+
+  .grid{display:grid;width:100%;aspect-ratio:1;gap:0;border:2px solid var(--line);background:var(--line);}
+  .grid .cell{background:var(--tile-white);border:1px solid var(--line);}
+  .grid .cell.on{background:var(--tile-black);}
+
+  .board-stage{margin-top:clamp(20px,5vw,38px);}
+  .board{display:grid;gap:clamp(6px,1.6vw,12px);width:min(82vw,360px);margin:0 auto;touch-action:none;user-select:none;transition:transform .4s cubic-bezier(.2,.9,.3,1.4);}
+  .board.solved{animation:winPulse .7s ease;}
+  @keyframes winPulse{30%{transform:scale(1.04)}100%{transform:scale(1)}}
+
+  .tile{position:relative;aspect-ratio:1;padding:0;border:none;cursor:grab;background:transparent;border-radius:5px;-webkit-tap-highlight-color:transparent;touch-action:none;transition:box-shadow .18s ease;box-shadow:0 6px 14px -8px rgba(40,33,20,.5);}
+  .tile .inner{position:absolute;inset:0;display:grid;grid-template:1fr 1fr/1fr 1fr;gap:0;border:2px solid var(--line);border-radius:5px;overflow:hidden;background:var(--line);}
+  .tile .q{background:var(--tile-white);border:1px solid var(--line);}
+  .tile .q.on{background:var(--tile-black);}
+  .tile.spin .inner{animation:spinIn .26s cubic-bezier(.2,.8,.25,1);}
+  @keyframes spinIn{from{transform:rotate(-90deg)}to{transform:rotate(0)}}
+  .tile:focus-visible{outline:3px solid var(--blue);outline-offset:3px;}
+  .tile.correct .inner{box-shadow:inset 0 0 0 3px var(--good-soft);}
+  .tile.dragging{z-index:50;cursor:grabbing;box-shadow:0 22px 32px -14px rgba(40,33,20,.75);}
+  .tile.over{transform:scale(.9);box-shadow:0 0 0 4px rgba(46,111,224,.28),0 6px 14px -8px rgba(40,33,20,.5);}
+  .tile.over .inner{box-shadow:inset 0 0 0 4px var(--blue);}
+  .tile.swapping{z-index:45;}
+
+  .controls{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:clamp(22px,5vw,40px);justify-content:center;}
+  button.btn{font:inherit;font-weight:700;cursor:pointer;border-radius:999px;border:none;padding:12px 22px;background:var(--ink);color:var(--paper);box-shadow:0 8px 18px -10px rgba(33,31,26,.7);transition:transform .12s ease;}
+  button.btn:hover{transform:translateY(-1px);}
+  .seg{display:inline-flex;background:rgba(33,31,26,.07);border-radius:999px;padding:3px;gap:2px;flex-wrap:wrap;justify-content:center;}
+  .seg button{font:inherit;font-weight:600;font-size:.85rem;border:none;background:transparent;color:var(--muted);padding:8px 14px;border-radius:999px;cursor:pointer;transition:all .15s ease;}
+  .seg button[aria-pressed="true"]{background:var(--card);color:var(--ink);box-shadow:0 2px 6px -3px rgba(0,0,0,.3);}
+  .help-toggle{display:inline-flex;align-items:center;gap:7px;font-size:.85rem;color:var(--muted);cursor:pointer;user-select:none;}
+  .help-toggle input{width:34px;height:20px;appearance:none;background:rgba(33,31,26,.2);border-radius:999px;position:relative;cursor:pointer;transition:background .15s;}
+  .help-toggle input:checked{background:var(--good);}
+  .help-toggle input::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;background:#fff;border-radius:50%;transition:transform .15s;}
+  .help-toggle input:checked::after{transform:translateX(14px);}
+
+  .banner{position:fixed;left:50%;bottom:26px;transform:translate(-50%,150%);background:var(--good);color:#fff;padding:14px 26px;border-radius:999px;font-weight:700;box-shadow:0 16px 30px -14px rgba(33,80,50,.7);display:flex;align-items:center;gap:12px;transition:transform .45s cubic-bezier(.2,.9,.3,1.3);z-index:60;}
+  .banner.show{transform:translate(-50%,0);}
+  .banner button{font:inherit;font-weight:700;background:#fff;color:var(--good);border:none;border-radius:999px;padding:7px 16px;cursor:pointer;}
+
+  .hint{text-align:center;color:var(--muted);font-size:.84rem;margin-top:18px;line-height:1.5;}
+
+  .play{position:relative;}
+  .cover{position:absolute;inset:-6px;display:flex;align-items:center;justify-content:center;border-radius:16px;
+    background:rgba(242,238,230,.94);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);
+    z-index:10;transition:opacity .4s ease;box-shadow:inset 0 0 0 1px rgba(33,31,26,.06);}
+  .cover.hide{opacity:0;pointer-events:none;}
+  .cover-card{display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center;}
+  .cover-mark{width:44px;height:44px;background:var(--ink);position:relative;border-radius:6px;}
+  .cover-mark::after{content:"";position:absolute;right:0;bottom:0;width:50%;height:50%;background:var(--tile-white);border-top:3px solid var(--ink);border-left:3px solid var(--ink);border-bottom-right-radius:6px;}
+  .cover-start{font-size:1.05rem;padding:14px 38px;}
+  .cover-card p{margin:0;color:var(--muted);font-size:.82rem;letter-spacing:.02em;}
+
+  @media (min-width:760px){
+    .wrap{max-width:900px;}
+    .play{display:grid;grid-template-columns:1fr 1fr;gap:clamp(24px,4vw,48px);align-items:start;}
+    .board-stage{margin-top:0;}
+    .card{width:min(100%,240px);}
+    .ledge{width:min(100%,280px);}
+    .board{width:min(100%,340px);}
+  }
+
+  @media (prefers-reduced-motion: reduce){*{animation:none !important;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="title">
+      <h1><span class="mark"></span>Karo-Karacho</h1>
+      <p>Dreh, tausch, tüftle – bis das Muster sitzt!</p>
+    </div>
+    <div class="clock">
+      <svg class="hourglass" viewBox="0 0 48 68" aria-hidden="true">
+        <defs>
+          <linearGradient id="hgSand" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#4FAAF2"/><stop offset="1" stop-color="#1C68BD"/>
+          </linearGradient>
+          <linearGradient id="hgWood" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#EAC58E"/><stop offset="1" stop-color="#C5934F"/>
+          </linearGradient>
+          <linearGradient id="hgGlass" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="rgba(46,143,224,.14)"/>
+            <stop offset=".5" stop-color="rgba(46,143,224,.04)"/>
+            <stop offset="1" stop-color="rgba(46,143,224,.14)"/>
+          </linearGradient>
+          <clipPath id="hgClipTop"><polygon points="8,8 40,8 25,34 23,34"/></clipPath>
+          <clipPath id="hgClipBot"><polygon points="23,34 25,34 40,60 8,60"/></clipPath>
+        </defs>
+        <polygon points="8,8 40,8 25,34 23,34" fill="url(#hgGlass)" stroke="#A7BCCB" stroke-width="1.1" stroke-linejoin="round"/>
+        <polygon points="23,34 25,34 40,60 8,60" fill="url(#hgGlass)" stroke="#A7BCCB" stroke-width="1.1" stroke-linejoin="round"/>
+        <g clip-path="url(#hgClipTop)"><rect id="hgTop" x="6" y="8" width="36" height="26" fill="url(#hgSand)"/></g>
+        <g clip-path="url(#hgClipBot)">
+          <rect id="hgBot" x="6" y="60" width="36" height="0" fill="url(#hgSand)"/>
+          <polygon id="hgMound" points="24,60 19,60 29,60" fill="url(#hgSand)"/>
+        </g>
+        <rect id="hgStream" x="23.4" y="34" width="1.2" height="0" fill="#1C68BD" opacity="0"/>
+        <rect x="3" y="1" width="42" height="5" rx="2.5" fill="url(#hgWood)"/>
+        <rect x="3" y="62" width="42" height="5" rx="2.5" fill="url(#hgWood)"/>
+        <rect x="6" y="5" width="2.6" height="58" rx="1.3" fill="url(#hgWood)"/>
+        <rect x="39.4" y="5" width="2.6" height="58" rx="1.3" fill="url(#hgWood)"/>
+      </svg>
+      <div class="timer" id="timer">0:00</div>
+      <div class="best" id="best">&nbsp;</div>
+    </div>
+  </header>
+
+  <div class="play" id="play">
+    <section>
+      <p class="eyebrow">Vorlage</p>
+      <div class="target-stage"><div class="card"><div class="grid" id="target"></div></div></div>
+      <div class="ledge"></div>
+    </section>
+
+    <section class="board-stage">
+      <p class="eyebrow">Dein Raster</p>
+      <div class="board" id="board"></div>
+    </section>
+
+    <div class="cover" id="cover">
+      <div class="cover-card">
+        <span class="cover-mark"></span>
+        <button class="btn cover-start" id="startBtn" type="button">Start</button>
+        <p>Aufdecken und Zeit starten</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="btn" id="newBtn">Neues Rätsel</button>
+    <div class="seg" id="diff" role="group" aria-label="Schwierigkeit">
+      <button data-i="0" aria-pressed="true">Einfach</button>
+      <button data-i="1" aria-pressed="false">Mittel</button>
+      <button data-i="2" aria-pressed="false">Schwer</button>
+      <button data-i="3" aria-pressed="false">Extrem</button>
+    </div>
+    <label class="help-toggle"><input type="checkbox" id="help"> Hilfe anzeigen</label>
+  </div>
+
+  <p class="hint">Kachel ziehen, um zwei Plätze zu tauschen · antippen dreht sie um 90°.</p>
+</div>
+
+<div class="banner" id="banner">
+  <span id="bannerText">Gelöst!</span>
+  <button id="bannerNew">Nächstes</button>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const $ = s => document.querySelector(s);
+  const targetEl=$("#target"), boardEl=$("#board"), timerEl=$("#timer"), bestEl=$("#best");
+  const bannerEl=$("#banner"), bannerText=$("#bannerText");
+
+  const MODES=[
+    {n:2,pos:false,label:"Einfach"},
+    {n:2,pos:true ,label:"Mittel"},
+    {n:3,pos:true ,label:"Schwer"},
+    {n:4,pos:true ,label:"Extrem"}
+  ];
+  let modeIdx=0, N=2, posScramble=false;
+  let target=[], tiles=[], solved=false, helpOn=false, started=false;
+  const cover=$("#cover");
+  let timer={start:0,running:false,raf:0,frozen:0};
+  let drag=null;
+  const best=[null,null,null,null];
+
+  const hg={top:$("#hgTop"),bot:$("#hgBot"),mound:$("#hgMound"),stream:$("#hgStream")};
+  const HG_CYCLE=90; // Sekunden, bis die Sanduhr durchgelaufen ist
+  function updateHourglass(ms,running){
+    const f=running?Math.min(1,(ms/1000)/HG_CYCLE):0;
+    const topY=8+f*26;
+    hg.top.setAttribute("y",topY.toFixed(2));
+    hg.top.setAttribute("height",Math.max(0,34-topY).toFixed(2));
+    const botTop=60-f*26;
+    hg.bot.setAttribute("y",botTop.toFixed(2));
+    hg.bot.setAttribute("height",Math.max(0,60-botTop).toFixed(2));
+    const peakY=(botTop-4*f).toFixed(2), b=botTop.toFixed(2);
+    hg.mound.setAttribute("points",`24,${peakY} 19,${b} 29,${b}`);
+    if(running&&f>0.01&&f<0.995){
+      hg.stream.setAttribute("opacity",".75");
+      hg.stream.setAttribute("height",Math.max(0,botTop-34).toFixed(2));
+    }else{
+      hg.stream.setAttribute("opacity","0");
+    }
+  }
+
+  const rnd=()=>Math.random()<0.5?1:0;
+  const rotCW=m=>[[m[1][0],m[0][0]],[m[1][1],m[0][1]]];
+  const rotN=(m,k)=>{let r=m;for(let i=0;i<((k%4)+4)%4;i++)r=rotCW(r);return r;};
+  const displayed=t=>rotN(t.base,t.rot);
+
+  function makeTarget(){
+    const S=N*2;
+    target=Array.from({length:S},()=>Array.from({length:S},rnd));
+    const sum=target.flat().reduce((a,b)=>a+b,0);
+    if(sum===0) target[0][0]=1;
+    if(sum===S*S) target[0][0]=0;
+  }
+  function buildTiles(){
+    tiles=[];
+    for(let tr=0;tr<N;tr++)for(let tc=0;tc<N;tc++){
+      tiles.push({base:[
+        [target[tr*2][tc*2],target[tr*2][tc*2+1]],
+        [target[tr*2+1][tc*2],target[tr*2+1][tc*2+1]]
+      ],rot:0});
+    }
+  }
+  function slotMatches(i){
+    const tr=(i/N|0),tc=i%N,d=displayed(tiles[i]);
+    return d[0][0]===target[tr*2][tc*2]&&d[0][1]===target[tr*2][tc*2+1]&&
+           d[1][0]===target[tr*2+1][tc*2]&&d[1][1]===target[tr*2+1][tc*2+1];
+  }
+  function assembledMatches(){for(let i=0;i<tiles.length;i++)if(!slotMatches(i))return false;return true;}
+
+  function scramble(){
+    let tries=0;
+    do{
+      if(posScramble){for(let i=tiles.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[tiles[i],tiles[j]]=[tiles[j],tiles[i]];}}
+      tiles.forEach(t=>t.rot=(Math.random()*4)|0);
+      tries++;
+    }while(assembledMatches()&&tries<80);
+  }
+
+  function renderTarget(){
+    const S=N*2;
+    targetEl.style.gridTemplate=`repeat(${S},1fr)/repeat(${S},1fr)`;
+    targetEl.innerHTML="";
+    for(let r=0;r<S;r++)for(let c=0;c<S;c++){
+      const d=document.createElement("div");
+      d.className="cell"+(target[r][c]?" on":"");
+      targetEl.appendChild(d);
+    }
+  }
+  function renderBoard(){
+    boardEl.style.gridTemplate=`repeat(${N},1fr)/repeat(${N},1fr)`;
+    boardEl.innerHTML="";
+    tiles.forEach((t,i)=>{
+      const btn=document.createElement("button");
+      btn.className="tile";btn.type="button";
+      btn.setAttribute("aria-label",`Kachel ${i+1}: tippen dreht, ziehen tauscht`);
+      btn.appendChild(document.createElement("div")).className="inner";
+      btn.addEventListener("pointerdown",e=>onDown(i,e));
+      btn.addEventListener("keydown",e=>{
+        if(e.key==="Enter"||e.key===" "||e.key==="r"||e.key==="R"){e.preventDefault();rotate(i);}
+      });
+      boardEl.appendChild(btn);
+      paintTile(i);
+    });
+  }
+  function paintTile(i){
+    const btn=boardEl.children[i], inner=btn.firstChild, d=displayed(tiles[i]);
+    inner.innerHTML="";
+    [[0,0],[0,1],[1,0],[1,1]].forEach(([r,c])=>{
+      const q=document.createElement("div");q.className="q"+(d[r][c]?" on":"");inner.appendChild(q);
+    });
+    btn.classList.toggle("correct",helpOn&&slotMatches(i));
+  }
+  const paintAll=()=>tiles.forEach((_,i)=>paintTile(i));
+  function flash(i,cls){const b=boardEl.children[i];b.classList.remove(cls);void b.offsetWidth;b.classList.add(cls);}
+
+  // ---- Drehen ----
+  function rotate(i){
+    if(solved||!started)return;
+    tiles[i].rot=(tiles[i].rot+1)%4;
+    paintTile(i);flash(i,"spin");
+    if(assembledMatches())win();
+  }
+
+  // ---- Drag & Drop (Plätze tauschen) ----
+  const THRESH=10;
+  function onDown(i,e){
+    if(solved||drag||!started)return;
+    const el=boardEl.children[i];
+    drag={id:e.pointerId,from:i,x0:e.clientX,y0:e.clientY,el,moved:false,
+          rects:[...boardEl.children].map(c=>c.getBoundingClientRect())};
+    try{el.setPointerCapture(e.pointerId);}catch(_){}
+  }
+  function tileUnder(x,y){
+    if(!drag)return -1;
+    for(let k=0;k<drag.rects.length;k++){
+      const r=drag.rects[k];
+      if(x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom)return k;
+    }
+    return -1;
+  }
+  function onMove(e){
+    if(!drag||e.pointerId!==drag.id)return;
+    const dx=e.clientX-drag.x0, dy=e.clientY-drag.y0;
+    if(!drag.moved&&Math.hypot(dx,dy)>THRESH){
+      drag.moved=true;
+      drag.el.classList.add("dragging");
+    }
+    if(drag.moved){
+      e.preventDefault();
+      drag.el.style.transform=`translate(${dx}px,${dy}px) scale(1.06)`;
+      const to=tileUnder(e.clientX,e.clientY);
+      [...boardEl.children].forEach((c,idx)=>c.classList.toggle("over",idx===to&&to!==drag.from));
+    }
+  }
+  function endDrag(commit,e){
+    const d=drag; drag=null;
+    if(!d)return;
+    [...boardEl.children].forEach(c=>c.classList.remove("over"));
+    if(!d.moved){ rotate(d.from); return; }
+    const to=commit?tileUnderRects(d.rects,e.clientX,e.clientY,d.from):-1;
+    const fromEl=d.el;
+    const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if(to>-1&&to!==d.from){
+      const toEl=boardEl.children[to];
+      const rf=d.rects[d.from], rt=d.rects[to];
+      const ddx=rt.left-rf.left, ddy=rt.top-rf.top;
+      const finish=()=>{
+        [tiles[d.from],tiles[to]]=[tiles[to],tiles[d.from]];
+        fromEl.style.transition="";toEl.style.transition="";
+        fromEl.style.transform="";toEl.style.transform="";
+        fromEl.classList.remove("dragging","swapping");toEl.classList.remove("swapping");
+        paintTile(d.from);paintTile(to);
+        if(assembledMatches())win();
+      };
+      if(reduce){finish();return;}
+      // beide Kacheln sichtbar an ihre neuen Plätze gleiten lassen
+      toEl.classList.add("swapping");
+      fromEl.style.transition="transform .28s cubic-bezier(.3,.7,.25,1)";
+      toEl.style.transition="transform .28s cubic-bezier(.3,.7,.25,1)";
+      requestAnimationFrame(()=>{
+        fromEl.style.transform=`translate(${ddx}px,${ddy}px) scale(1.05)`;
+        toEl.style.transform=`translate(${-ddx}px,${-ddy}px)`;
+      });
+      setTimeout(finish,290);
+    }else{
+      fromEl.style.transition="transform .2s cubic-bezier(.2,.8,.3,1)";
+      fromEl.style.transform="";
+      setTimeout(()=>{fromEl.style.transition="";fromEl.classList.remove("dragging");},200);
+    }
+  }
+  function tileUnderRects(rects,x,y){
+    for(let k=0;k<rects.length;k++){
+      const r=rects[k];
+      if(x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom)return k;
+    }
+    return -1;
+  }
+  document.addEventListener("pointermove",onMove,{passive:false});
+  document.addEventListener("pointerup",e=>{if(drag&&e.pointerId===drag.id)endDrag(true,e);});
+  document.addEventListener("pointercancel",e=>{if(drag&&e.pointerId===drag.id)endDrag(false,e);});
+
+  // ---- Timer ----
+  const fmt=ms=>{const s=Math.floor(ms/1000);return`${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`;};
+  function startTimer(){timer.start=performance.now();timer.running=true;tick();}
+  function tick(){if(!timer.running)return;timer.frozen=performance.now()-timer.start;timerEl.textContent=fmt(timer.frozen);updateHourglass(timer.frozen,true);timer.raf=requestAnimationFrame(tick);}
+  function stopTimer(){timer.running=false;cancelAnimationFrame(timer.raf);}
+  function showBest(){bestEl.innerHTML=best[modeIdx]!=null?"Bestzeit "+fmt(best[modeIdx]):"&nbsp;";}
+
+  function win(){
+    solved=true;stopTimer();boardEl.classList.add("solved");
+    if(best[modeIdx]==null||timer.frozen<best[modeIdx])best[modeIdx]=timer.frozen;
+    showBest();
+    bannerText.textContent="Gelöst in "+fmt(timer.frozen)+"!";
+    bannerEl.classList.add("show");
+  }
+  function startRound(){
+    if(started||solved)return;
+    started=true;
+    cover.classList.add("hide");
+    startTimer();
+  }
+  function newGame(){
+    const m=MODES[modeIdx];N=m.n;posScramble=m.pos;
+    solved=false;drag=null;started=false;
+    cover.classList.remove("hide");
+    boardEl.classList.remove("solved");bannerEl.classList.remove("show");
+    stopTimer();timer.frozen=0;timerEl.textContent="0:00";updateHourglass(0,false);
+    makeTarget();buildTiles();scramble();
+    renderTarget();renderBoard();showBest();
+  }
+
+  $("#startBtn").addEventListener("click",startRound);
+
+  $("#newBtn").addEventListener("click",newGame);
+  $("#bannerNew").addEventListener("click",newGame);
+  $("#diff").addEventListener("click",e=>{
+    const b=e.target.closest("button[data-i]");if(!b)return;
+    [...e.currentTarget.children].forEach(x=>x.setAttribute("aria-pressed",x===b));
+    modeIdx=+b.dataset.i;newGame();
+  });
+  $("#help").addEventListener("change",e=>{helpOn=e.target.checked;paintAll();});
+
+  newGame();
+})();
+</script>
+</body>
+</html>
