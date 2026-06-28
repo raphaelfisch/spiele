@@ -379,23 +379,22 @@
 
   /* ---------- tilt sensor (DeviceOrientation) ---------- */
   const tiltBtn=document.getElementById("tiltBtn");
-  let sensorOn=false, gamma0=null, beta0=null, armed=true, gotEvent=false;
-  const THRESH=15, DEAD=7;
+  let sensorOn=false, gamma0=null, beta0=null, gotEvent=false;
+  let lastDir=null, nextOK=0;
+  const THRESH=10, DEAD=4, COOLDOWN=140;   // lower threshold = reacts sooner
 
   function onOrient(e){
     if(e.gamma==null && e.beta==null) return;
     gotEvent=true;
     if(gamma0===null){ gamma0=e.gamma||0; beta0=e.beta||0; }
-    const rg=(e.gamma||0)-gamma0;     // left/right
-    const rb=(e.beta||0)-beta0;       // front/back
+    const rg=(e.gamma||0)-gamma0, rb=(e.beta||0)-beta0;
     const ax=Math.abs(rg), ay=Math.abs(rb), mag=Math.max(ax,ay);
-    if(armed && mag>THRESH && !solved){
-      // one direction drives BOTH the board tilt and the roll (same as a swipe)
-      const dir = ax>ay ? (rg>0?'R':'L') : (rb>0?'D':'U');
-      armed=false; press(dir);
-    }else if(mag<DEAD){
-      if(!armed) releaseTilt();        // phone back to level -> straighten board & reload
-      armed=true;
+    if(mag<DEAD){ lastDir=null; releaseTilt(); return; }   // near level: straighten, ready again
+    if(solved || mag<THRESH) return;                       // neutral zone: hold, no new roll
+    const dir = ax>ay ? (rg>0?'R':'L') : (rb>0?'D':'U');
+    const now=performance.now();
+    if(dir!==lastDir && now>=nextOK){      // fire instantly on each direction change
+      lastDir=dir; nextOK=now+COOLDOWN; press(dir);
     }
   }
 
@@ -406,7 +405,7 @@
         if(res!=="granted"){ toast("Sensor-Zugriff abgelehnt"); return false; }
       }
     }catch(err){ toast("Sensor nicht verfügbar (evtl. nur über https)"); return false; }
-    gamma0=null; beta0=null; armed=true; gotEvent=false;
+    gamma0=null; beta0=null; lastDir=null; nextOK=0; gotEvent=false;
     window.addEventListener("deviceorientation", onOrient);
     setTimeout(()=>{ if(sensorOn && !gotEvent){ toast("Kein Sensor-Signal – Seite über https öffnen"); setSensor(false); } }, 1500);
     toast("Neigungssteuerung an – kippe das Handy");
