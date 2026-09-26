@@ -92,6 +92,8 @@ input.name{text-transform:none;letter-spacing:0}
 .lb .it.me{box-shadow:0 0 0 2px var(--accent) inset}
 .lb .it.wait{color:var(--muted)}
 .lb .rk{width:28px;color:var(--muted)}
+.lb .it{text-align:left}
+#winBtns button{white-space:nowrap;padding:14px 10px}
 .lb .nm{flex:1}
 
 /* Beamer / Host */
@@ -99,7 +101,7 @@ input.name{text-transform:none;letter-spacing:0}
 .pill{display:inline-block;padding:6px 14px;border-radius:99px;background:var(--panel);box-shadow:0 0 0 1px var(--line) inset;margin:4px;font-size:20px}
 #qr{background:#fff;padding:12px;border-radius:14px;line-height:0;aspect-ratio:1}
 #qr img,#qr canvas{display:block;width:100%;height:auto}
-.sess{font-weight:900;letter-spacing:.12em;font-variant-numeric:tabular-nums}
+.sess{font-weight:900;letter-spacing:.12em;margin-right:-.12em;font-variant-numeric:tabular-nums}
 .muted{color:var(--muted)}
 /* Lobby */
 .lobby{display:flex;flex-direction:column;align-items:center;gap:22px;width:100%;flex:1;justify-content:center}
@@ -145,6 +147,18 @@ input.name{text-transform:none;letter-spacing:0}
   .lobby button{font-size:18px;padding:14px 22px;white-space:nowrap}
   .lobby{gap:16px}
 }
+.screen#wait,.screen#nameScr{min-height:100vh;min-height:100dvh;justify-content:center;gap:18px}
+#nameScr h1{margin:0}
+#wait h1{margin:0}
+.waitcard{display:flex;flex-direction:column;align-items:center;gap:10px;width:100%;max-width:340px;
+  background:var(--panel);border-radius:20px;padding:22px 20px;box-shadow:0 0 0 1px var(--line) inset;text-align:center}
+.waitcard .sess{font-size:56px;line-height:1.05}
+.waitcard .small{font-size:13px}
+#qrDuel{background:#fff;padding:10px;border-radius:12px;line-height:0;width:180px;aspect-ratio:1}
+#qrDuel img,#qrDuel canvas{display:block;width:100%;height:auto}
+#qrDuel:empty,#qrDuel:empty + .small{display:none}
+.players .pill{font-size:17px}
+.wbtns{display:flex;flex-direction:column;gap:10px;width:100%;max-width:340px}
 .bests{width:100%;max-width:340px}
 .bests h3{font-size:15px;margin:10px 0 6px;color:var(--muted);font-weight:600}
 </style>
@@ -156,7 +170,7 @@ input.name{text-transform:none;letter-spacing:0}
   <h1>Genius Square<small>9 Teile · 7 Würfel · ein Quadrat</small></h1>
   <div class="menu">
     <button class="primary" onclick="startSolo()">Solo spielen<small>Würfeln und auf Zeit lösen</small></button>
-    <button onclick="startHost('duel')">Duell starten<small>Gegen eine Person, gleiches Rätsel</small></button>
+    <button onclick="startHost('duel')">Gruppe starten<small>2–6 Personen am Tisch, gleiches Rätsel</small></button>
     <button onclick="startHost('class')">Klassenrunde<small>Beamer-Ansicht mit Live-Rangliste</small></button>
   </div>
   <div class="row" style="margin-top:6px">
@@ -164,7 +178,7 @@ input.name{text-transform:none;letter-spacing:0}
   </div>
   <div class="row"><button onclick="enterCode()">Mit Code beitreten</button></div>
   <div class="err" id="homeErr"></div>
-  <p class="hint">4-stelliger Code: dieses Rätsel solo spielen.<br>5-stelliger Code: einem Duell oder einer Klassenrunde beitreten.</p>
+  <p class="hint">4-stelliger Code: dieses Rätsel solo spielen.<br>5-stelliger Code: einer Gruppe oder Klassenrunde beitreten.</p>
   <div class="bests" id="bests"></div>
 </section>
 
@@ -177,17 +191,21 @@ input.name{text-transform:none;letter-spacing:0}
   <div class="err" id="nameErr"></div>
 </section>
 
-<!-- ============ WARTEN (Client / Duell-Host) ============ -->
+<!-- ============ WARTEN (Client / Gruppen-Host) ============ -->
 <section class="screen" id="wait">
   <h1 id="waitTitle">Warten…</h1>
-  <div class="joinbox" id="waitCodeBox" style="display:none">
-    <div class="hint">Code für die andere Person</div>
-    <div class="sc" id="waitCode"></div>
+  <div class="waitcard" id="waitCodeBox" style="display:none">
+    <div class="muted">Code zum Beitreten</div>
+    <div class="sess" id="waitCode">…</div>
+    <div id="qrDuel"></div>
+    <div class="muted small">oder QR-Code scannen</div>
   </div>
   <p class="hint" id="waitHint"></p>
   <div class="players" id="waitPlayers"></div>
-  <button class="primary" id="waitStart" style="display:none" onclick="hostStartRound()">Los geht's</button>
-  <button onclick="leave()">Abbrechen</button>
+  <div class="wbtns">
+    <button class="primary" id="waitStart" style="display:none" onclick="hostStartRound()">Los geht's</button>
+    <button onclick="leave()">Abbrechen</button>
+  </div>
 </section>
 
 <!-- ============ SPIEL ============ -->
@@ -488,11 +506,11 @@ function checkWin(){
     $("winLb").innerHTML = "";
     btns.innerHTML = `<button onclick="hide('winOv');goHome()">Menü</button><button class="primary" onclick="hide('winOv');startSolo()">Neues Rätsel</button>`;
   } else {
-    $("winInfo").textContent = "Deine Zeit wurde gesendet.";
+    $("winInfo").textContent = MODE==="duelhost" ? "Rangliste der Gruppe" : "Deine Zeit wurde gesendet.";
     if(MODE==="client") sendHost({t:"done", round:C.round, ms:G.ms});
     if(MODE==="duelhost") hostRecord(H.me, G.ms);
     btns.innerHTML = `<button onclick="hide('winOv')">Schliessen</button>`;
-    if(MODE==="duelhost") btns.innerHTML += `<button class="primary" onclick="hide('winOv');hostStartRound()">Revanche</button>`;
+    if(MODE==="duelhost") btns.innerHTML += `<button class="primary" onclick="hide('winOv');hostStartRound()">Nächste Runde</button>`;
     renderClientLb();
   }
   showOv("winOv");
@@ -545,7 +563,7 @@ function enterCode(){
 /* ---------- Namen ---------- */
 function askName(session, host){
   show("nameScr"); $("nameErr").textContent="";
-  $("nameTitle").textContent = host ? "Duell starten" : "Beitreten";
+  $("nameTitle").textContent = host ? "Gruppe starten" : "Beitreten";
   $("nameIn").value = store.get("gsq-name","");
   $("nameGo").onclick = ()=>{
     const n = $("nameIn").value.trim().slice(0,16);
@@ -578,7 +596,7 @@ function openHost(kind, myName){
   if(typeof Peer==="undefined"){ msg("Die Verbindungs-Bibliothek konnte nicht geladen werden. Ist Internet vorhanden?"); goHome(); return; }
   tryOpen();
   if(MODE==="classhost"){ show("host"); $("hostCode").textContent="…"; G=null; hostRenderIdle(); }
-  else { show("wait"); $("waitTitle").textContent="Duell"; $("waitCodeBox").style.display="flex"; $("waitCode").textContent="…";
+  else { show("wait"); $("waitTitle").textContent="Gruppe"; $("waitCodeBox").style.display="flex"; $("waitCode").textContent="…";
     $("waitHint").textContent="Verbinde…"; $("waitStart").style.display="none"; $("waitPlayers").innerHTML=""; }
 }
 function joinUrl(){ return location.origin + location.pathname + "?join=" + H.session; }
@@ -590,7 +608,8 @@ function hostReady(){
     $("hostUrl").textContent = location.host ? location.host + location.pathname : "";
   } else {
     $("waitCode").textContent = H.session;
-    $("waitHint").textContent = "Die andere Person wählt «Mit Code beitreten» und gibt diesen Code ein.";
+    $("qrDuel").innerHTML=""; try{ new QRCode($("qrDuel"), {text:joinUrl(), width:300, height:300, correctLevel:QRCode.CorrectLevel.M}); }catch(e){}
+    $("waitHint").textContent = "Die anderen wählen «Mit Code beitreten» oder scannen den QR-Code. Bis zu 6 Personen.";
   }
   hostBroadcastLobby();
 }
@@ -602,7 +621,7 @@ function hostConn(c){
 function hostData(c, d){
   if(!H || !d || typeof d!=="object") return;
   if(d.t==="hello"){
-    if(H.kind==="duel" && H.players.size>=2 && !H.players.has(c.peer)){ c.send({t:"full"}); return; }
+    if(H.kind==="duel" && H.players.size>=6 && !H.players.has(c.peer)){ c.send({t:"full"}); return; }
     H.conns.set(c.peer, c); H.players.set(c.peer, String(d.name||"?").slice(0,16));
     hostBroadcastLobby();
     if(H.running) c.send({t:"start", round:H.round, code:H.code, late:true});
@@ -626,7 +645,7 @@ function hostBroadcastLobby(){
     $("waitPlayers").innerHTML = pills;
     const ready = H.players.size>=2;
     $("waitStart").style.display = ready ? "block" : "none";
-    if(ready) $("waitHint").textContent = "Beide da. Los geht's!";
+    $("waitHint").textContent = ready ? `${H.players.size} von 6 dabei. Starten oder auf weitere warten.` : "Die anderen wählen «Mit Code beitreten» oder scannen den QR-Code. Bis zu 6 Personen.";
   }
 }
 function lbEntries(){
@@ -699,7 +718,7 @@ function connFail(){
 function sendHost(d){ try{ C && C.conn && C.conn.send(d); }catch(e){} }
 function clientData(d){
   if(!d || typeof d!=="object" || MODE!=="client") return;
-  if(d.t==="full"){ msg("Dieses Duell ist schon voll."); goHome(); }
+  if(d.t==="full"){ msg("Diese Gruppe ist schon voll (höchstens 6)."); goHome(); }
   if(d.t==="lobby"){ $("waitPlayers").innerHTML = d.names.map(n=>`<span class="pill">${esc(n)}</span>`).join(""); }
   if(d.t==="start"){ C.round=d.round; C.entries=[]; hide("winOv"); playRound(d.code, null); }
   if(d.t==="board" && d.round===C.round){ C.entries=d.entries; C.you=d.you; renderClientLb(); }
