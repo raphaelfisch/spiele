@@ -68,9 +68,17 @@ input.name{text-transform:none;letter-spacing:0}
 .cell.ok::after{border-color:#7ee2b8} .cell.bad::after{border-color:#ff7b6b}
 
 /* Ablage */
-.tray{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:12px 14px;width:100%;
+.tray{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:8px 10px;width:100%;
   min-height:120px;padding:10px;border-radius:14px;background:var(--panel);box-shadow:0 0 0 1px var(--line) inset}
-.piece{display:grid;gap:0;cursor:grab;touch-action:none;padding:3px;border-radius:8px}
+.slot{display:flex;align-items:center;justify-content:center;border-radius:10px;flex:none}
+.slot.vacant{box-shadow:0 0 0 1.5px var(--line) inset;opacity:.5}
+.piece{display:grid;gap:0;cursor:grab;touch-action:none;padding:3px;border-radius:8px;transition:outline-color .15s}
+.piece.spin{animation:spin .2s ease-out}
+@keyframes spin{from{transform:rotate(-90deg)}to{transform:none}}
+.piece.flipa{animation:flipa .2s ease-out}
+@keyframes flipa{from{transform:scaleX(-1)}to{transform:none}}
+.piece.back{animation:back .2s ease-out}
+@keyframes back{from{transform:scale(.6);opacity:.3}to{transform:none;opacity:1}}
 .piece.sel{outline:2px dashed var(--accent);outline-offset:2px}
 .piece .pc{border-radius:3px;margin:1px;background-image:linear-gradient(145deg,rgba(255,255,255,.2),rgba(0,0,0,.12))}
 .board .cell.p, .board{touch-action:none}
@@ -106,7 +114,11 @@ input.name{text-transform:none;letter-spacing:0}
 .bests .it:active{transform:scale(.98)}
 .bests .play{color:var(--accent);font-weight:700;margin-left:12px}
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:100;padding:16px}
-.overlay.on{display:flex}
+.overlay.on{display:flex;animation:fade .15s ease-out}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.card.pop{animation:popin .2s cubic-bezier(.2,.9,.3,1.3)}
+@keyframes popin{from{transform:scale(.9);opacity:0}to{transform:none;opacity:1}}
+.poptext{font-size:18px;font-weight:600;line-height:1.4;padding:6px 0}
 .card{background:var(--panel);border-radius:18px;padding:22px;width:100%;max-width:360px;text-align:center;display:flex;flex-direction:column;gap:12px}
 .card .big{font-size:40px;font-weight:800;font-variant-numeric:tabular-nums}
 .count{font-size:120px;font-weight:900;color:#fff}
@@ -316,9 +328,16 @@ input.name{text-transform:none;letter-spacing:0}
 
 <!-- Overlays -->
 <div class="overlay" id="countOv"><div class="count" id="countNum">3</div></div>
-<div class="overlay" id="msgOv"><div class="card">
-  <div id="msgText"></div>
+<div class="overlay" id="msgOv"><div class="card pop">
+  <div class="poptext" id="msgText"></div>
   <button class="primary" onclick="hide('msgOv')">OK</button>
+</div></div>
+<div class="overlay" id="askOv"><div class="card pop">
+  <div class="poptext" id="askText"></div>
+  <div class="rbtns" style="grid-template-columns:1fr 1fr">
+    <button id="askNo">Abbrechen</button>
+    <button class="primary" id="askYes" style="grid-column:auto;order:0">Ja</button>
+  </div>
 </div></div>
 
 <script>
@@ -399,6 +418,15 @@ const $ = id => document.getElementById(id);
 function show(id){ document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("on", s.id===id)); }
 function showOv(id){ $(id).classList.add("on"); } function hide(id){ $(id).classList.remove("on"); }
 function msg(t){ $("msgText").textContent=t; showOv("msgOv"); }
+// eigenes Bestätigungs-Popup statt confirm()
+function ask(text, yes="Ja", no="Abbrechen"){
+  return new Promise(res=>{
+    $("askText").textContent=text; $("askYes").textContent=yes; $("askNo").textContent=no;
+    const done = v => { hide("askOv"); $("askYes").onclick=$("askNo").onclick=null; res(v); };
+    $("askYes").onclick=()=>done(true); $("askNo").onclick=()=>done(false);
+    showOv("askOv");
+  });
+}
 function fmt(ms){ if(ms==null) return "–"; const t=Math.floor(ms/100), d=t%10, s=Math.floor(t/10)%60, m=Math.floor(t/600);
   return m+":"+String(s).padStart(2,"0")+"."+d; }
 const esc = s => String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -461,17 +489,26 @@ function renderBoard(el, forGame){
   el.innerHTML = h;
 }
 function renderTray(){
-  const tc = Math.round(cellSize()*0.55);
+  // Jedes Teil hat einen festen, quadratischen Platz (Seitenlänge = längste Ausdehnung).
+  // Die längste Ausdehnung ändert sich beim Drehen/Spiegeln nicht -> nichts verrutscht.
+  const tc = Math.round(cellSize()*0.52);
   let h="";
-  for(const p of G.pieces){ if(p.pos || (drag && drag.p===p)) continue;
-    const [R,C]=dims(p.shape);
-    h+=`<div class="piece${G.sel===p?" sel":""}" data-p="${p.id}" style="grid-template-columns:repeat(${C},${tc}px);grid-template-rows:repeat(${R},${tc}px)">`;
-    const set = new Set(p.shape.map(([r,c])=>r*10+c));
-    for(let r=0;r<R;r++) for(let c=0;c<C;c++)
-      h+= set.has(r*10+c) ? `<div class="pc" data-r="${r}" data-c="${c}" style="background-color:${p.col}"></div>` : `<div></div>`;
+  for(const p of G.pieces){
+    const m = Math.max(...dims(norm(p.s))), sz = m*tc + 8;
+    const gone = p.pos || (drag && drag.p===p);
+    h+=`<div class="slot${gone?" vacant":""}" style="width:${sz}px;height:${sz}px">`;
+    if(!gone){
+      const [R,C]=dims(p.shape), set = new Set(p.shape.map(([r,c])=>r*10+c));
+      const an = G.anim && G.anim.id===p.id ? " "+G.anim.kind : "";
+      h+=`<div class="piece${G.sel===p?" sel":""}${an}" data-p="${p.id}" style="grid-template-columns:repeat(${C},${tc}px);grid-template-rows:repeat(${R},${tc}px)">`;
+      for(let r=0;r<R;r++) for(let c=0;c<C;c++)
+        h+= set.has(r*10+c) ? `<div class="pc" data-r="${r}" data-c="${c}" style="background-color:${p.col}"></div>` : `<div></div>`;
+      h+=`</div>`;
+    }
     h+=`</div>`;
   }
-  $("tray").innerHTML = h || `<span class="hint">Alle Teile gelegt</span>`;
+  $("tray").innerHTML = h;
+  G.anim = null;
 }
 function renderAll(){ renderBoard($("board"), true); renderTray(); }
 
@@ -479,6 +516,7 @@ function renderAll(){ renderBoard($("board"), true); renderTray(); }
 function transformPiece(p, fn){
   if(!p || G.done) return;
   const ns = fn(p.shape);
+  G.anim = {id:p.id, kind: fn===rot ? "spin" : "flipa"};
   if(p.pos){ if(fits(p, ns, p.pos[0], p.pos[1])) p.shape = ns; else { p.pos=null; p.shape=ns; } }
   else p.shape = ns;
   renderAll();
@@ -525,12 +563,12 @@ document.addEventListener("pointermove", e=>{
 document.addEventListener("pointerup", e=>{
   if(pend){ // Antippen
     const p = pend.p; pend=null;
-    if(p.pos){ p.pos=null; G.sel=p; renderAll(); }
-    else { if(G.sel===p) p.shape=rot(p.shape); G.sel=p; renderAll(); }
+    if(p.pos){ p.pos=null; G.sel=p; G.anim={id:p.id, kind:"back"}; renderAll(); }
+    else { if(G.sel===p){ p.shape=rot(p.shape); G.anim={id:p.id, kind:"spin"}; } G.sel=p; renderAll(); }
     return;
   }
   if(drag){ const t = target(drag.lx, drag.ly);
-    if(t && fits(drag.p, drag.p.shape, t[0], t[1])) drag.p.pos = t;
+    if(t && fits(drag.p, drag.p.shape, t[0], t[1])) drag.p.pos = t; else G.anim={id:drag.p.id, kind:"back"};
     drag=null; ghost && ghost.remove(); ghost=null; renderAll(); checkWin(); }
 });
 document.addEventListener("pointercancel", ()=>{ pend=null; if(drag){ drag=null; ghost&&ghost.remove(); ghost=null; renderAll(); } });
@@ -641,7 +679,10 @@ let peer = null, H = null, C = null;
 
 function goHome(){ cleanup(); MODE="none"; G=null; renderBests(); show("home");
   try{ if(location.search) history.replaceState(null,"",location.pathname); }catch(e){} }
-function leave(){ if(MODE!=="solo" && MODE!=="none" && !confirm("Wirklich verlassen?")) return; goHome(); }
+async function leave(){
+  if(MODE==="classhost" || MODE==="duelhost"){ if(!await ask("Runde beenden? Alle Verbindungen werden getrennt.", "Beenden", "Weiterspielen")) return; }
+  else if(MODE==="client"){ if(!await ask("Runde verlassen?", "Verlassen", "Bleiben")) return; }
+  goHome(); }
 function cleanup(){ try{ peer && peer.destroy(); }catch(e){} peer=null; H=null; C=null; ["winOv","countOv"].forEach(hide); }
 
 function startSolo(){
@@ -769,9 +810,9 @@ function hostSetView(running){
   const q = $("qr"); (running ? $("qrSlotS") : $("qrSlotL")).appendChild(q);
 }
 function hostRenderIdle(){ hostSetView(false); $("hostTimer").textContent="0:00.0"; $("hostLb").innerHTML=""; }
-function hostStartRound(){
+async function hostStartRound(){
   if(!H) return;
-  if(H.kind==="class" && H.players.size===0 && !confirm("Noch niemand verbunden. Trotzdem starten?")) return;
+  if(H.kind==="class" && H.players.size===0 && !await ask("Noch niemand verbunden. Trotzdem starten?", "Starten", "Warten")) return;
   H.round++; H.code = encode(rollFaces()); H.results = new Map(); H.running = true; H.roundStart = 0;
   for(const c of H.conns.values()) try{ c.send({t:"start", round:H.round, code:H.code}); }catch(e){}
   if(MODE==="classhost"){
