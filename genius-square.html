@@ -80,6 +80,31 @@ input.name{text-transform:none;letter-spacing:0}
 .tools button{flex:1;padding:10px}
 
 /* Overlays */
+.result{display:none;flex-direction:column;gap:12px;width:100%;padding:18px;border-radius:18px;background:var(--panel);
+  box-shadow:0 0 0 1px var(--line) inset;animation:rise .35s ease-out}
+.result.on{display:flex}
+@keyframes rise{from{transform:translateY(12px);opacity:0}to{transform:none;opacity:1}}
+#game:has(.result.on) .tools,#game:has(.result.on) .tray,#game:has(.result.on) > .hint{display:none}
+.rhead{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.rlabel{font-size:15px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.08em}
+.rtime{font-size:46px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.05}
+.rbadge{font-size:14px;font-weight:700;padding:8px 12px;border-radius:99px;text-align:center;white-space:nowrap}
+.rbadge:empty{display:none}
+.rbadge.gold{background:#e8b923;color:#3a2c00}
+.rbadge.soft{background:var(--bg);color:var(--muted);box-shadow:0 0 0 1px var(--line) inset}
+.rinfo{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:14px;color:var(--muted)}
+.rinfo:empty{display:none}
+.rinfo b{color:var(--ink);letter-spacing:.12em;font-size:17px}
+.rinfo button{padding:8px 12px;font-size:14px}
+.rbtns{display:grid;grid-template-columns:1fr 1fr;gap:8px}.rbtns button{white-space:nowrap;padding:14px 10px}
+.rbtns .primary{grid-column:1/-1;order:-1}
+.rbtns > :only-child{grid-column:1/-1}
+.lbhead{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:4px}
+.board.solved{animation:glow 1.2s ease-out}
+.boardwrap.solved{box-shadow:0 0 0 3px var(--accent),0 10px 30px rgba(31,122,90,.35)}
+.bests .it{cursor:pointer;width:100%;font:inherit;color:inherit;border:0;align-items:center}
+.bests .it:active{transform:scale(.98)}
+.bests .play{color:var(--accent);font-weight:700;margin-left:12px}
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:100;padding:16px}
 .overlay.on{display:flex}
 .card{background:var(--panel);border-radius:18px;padding:22px;width:100%;max-width:360px;text-align:center;display:flex;flex-direction:column;gap:12px}
@@ -159,6 +184,15 @@ input.name{text-transform:none;letter-spacing:0}
 #qrDuel:empty,#qrDuel:empty + .small{display:none}
 .players .pill{font-size:17px}
 .wbtns{display:flex;flex-direction:column;gap:10px;width:100%;max-width:340px}
+.joincard{display:flex;flex-direction:column;gap:10px;width:100%;max-width:340px;padding:18px;border-radius:16px;
+  background:var(--panel);box-shadow:0 0 0 1px var(--line) inset;text-align:center}
+.joincard .jt{font-size:20px;font-weight:800}
+.joincard .js{font-size:14px;color:var(--muted);margin-top:-6px}
+.joincard input{font-size:30px;font-weight:700;letter-spacing:.12em;padding:12px}
+.joincard input::placeholder{color:var(--line);font-weight:700}
+.joincard .err:empty{display:none}
+.linkbtn{background:none;box-shadow:none;color:var(--accent);font-weight:600;font-size:14px;padding:4px;text-decoration:underline;text-underline-offset:3px}
+.sect{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;text-align:center;margin-top:8px}
 .bests{width:100%;max-width:340px}
 .bests h3{font-size:15px;margin:10px 0 6px;color:var(--muted);font-weight:600}
 </style>
@@ -170,15 +204,20 @@ input.name{text-transform:none;letter-spacing:0}
   <h1>Genius Square<small>9 Teile · 7 Würfel · ein Quadrat</small></h1>
   <div class="menu">
     <button class="primary" onclick="startSolo()">Solo spielen<small>Würfeln und auf Zeit lösen</small></button>
+  </div>
+  <div class="joincard" id="joinCard">
+    <div class="jt" id="jTitle">Mitmachen</div>
+    <div class="js" id="jSub">Zahl vom Beamer oder von der Gruppe</div>
+    <input id="codeIn" inputmode="numeric" maxlength="7" placeholder="123 456" autocomplete="off" spellcheck="false">
+    <button id="codeGo" class="primary" onclick="enterCode()" disabled>Mitmachen</button>
+    <div class="err" id="homeErr"></div>
+    <button class="linkbtn" id="jSwitch" onclick="setCodeMode(codeMode==='join'?'puzzle':'join')">Ich habe einen Rätsel-Code</button>
+  </div>
+  <div class="menu">
+    <div class="sect">Selbst eine Runde eröffnen</div>
     <button onclick="startHost('duel')">Gruppe starten<small>2–6 Personen am Tisch, gleiches Rätsel</small></button>
     <button onclick="startHost('class')">Klassenrunde<small>Beamer-Ansicht mit Live-Rangliste</small></button>
   </div>
-  <div class="row" style="margin-top:6px">
-    <input id="codeIn" maxlength="5" placeholder="CODE" autocomplete="off" autocapitalize="characters">
-  </div>
-  <div class="row"><button onclick="enterCode()">Mit Code beitreten</button></div>
-  <div class="err" id="homeErr"></div>
-  <p class="hint">4-stelliger Code: dieses Rätsel solo spielen.<br>5-stelliger Code: einer Gruppe oder Klassenrunde beitreten.</p>
   <div class="bests" id="bests"></div>
 </section>
 
@@ -195,7 +234,7 @@ input.name{text-transform:none;letter-spacing:0}
 <section class="screen" id="wait">
   <h1 id="waitTitle">Warten…</h1>
   <div class="waitcard" id="waitCodeBox" style="display:none">
-    <div class="muted">Code zum Beitreten</div>
+    <div class="muted">Mitmach-Code</div>
     <div class="sess" id="waitCode">…</div>
     <div id="qrDuel"></div>
     <div class="muted small">oder QR-Code scannen</div>
@@ -226,7 +265,16 @@ input.name{text-transform:none;letter-spacing:0}
   </div>
   <div class="tray" id="tray"></div>
   <p class="hint">Antippen = auswählen, nochmals antippen = drehen · ziehen = legen · gelegtes Teil antippen = zurück</p>
-  <div class="lb" id="liveLb"></div>
+  <div class="result" id="winOv">
+    <div class="rhead">
+      <div><div class="rlabel" id="winLabel">Gelöst</div><div class="rtime" id="winTime"></div></div>
+      <div class="rbadge" id="winBadge"></div>
+    </div>
+    <div class="rinfo" id="winInfo"></div>
+    <div class="lb" id="winLb"></div>
+    <div class="rbtns" id="winBtns"></div>
+  </div>
+  <div id="liveLb" hidden></div>
 </section>
 
 <!-- ============ BEAMER ============ -->
@@ -235,7 +283,7 @@ input.name{text-transform:none;letter-spacing:0}
     <div class="join">
       <div id="qrSlotL"><div id="qr"></div></div>
       <div style="text-align:center">
-        <div class="muted" style="font-size:24px">Beitreten mit Code</div>
+        <div class="muted" style="font-size:24px">Mitmach-Code</div>
         <div class="sess" id="hostCode">…</div>
         <div class="muted" id="hostUrl" style="font-size:18px;margin-top:10px"></div>
       </div>
@@ -268,13 +316,6 @@ input.name{text-transform:none;letter-spacing:0}
 
 <!-- Overlays -->
 <div class="overlay" id="countOv"><div class="count" id="countNum">3</div></div>
-<div class="overlay" id="winOv"><div class="card">
-  <div>Gelöst!</div>
-  <div class="big" id="winTime"></div>
-  <div class="hint" id="winInfo"></div>
-  <div class="lb" id="winLb"></div>
-  <div class="row" style="max-width:none" id="winBtns"></div>
-</div></div>
 <div class="overlay" id="msgOv"><div class="card">
   <div id="msgText"></div>
   <button class="primary" onclick="hide('msgOv')">OK</button>
@@ -315,7 +356,43 @@ function decode(code){ code=(code||"").toUpperCase(); if(!/^[A-Z2-9]{4}$/.test(c
   if(n>=6**7) return null; const f=[]; for(let i=0;i<7;i++){ f.push(n%6); n=Math.floor(n/6);} return f; }
 const facesToBlocks = f => f.map((x,i)=>DICE[i][x]);
 const labelToRC = l => ["ABCDEF".indexOf(l[0]), +l[1]-1];
-function randSession(){ let s=""; for(let i=0;i<5;i++) s+=ALPH[Math.floor(Math.random()*32)]; return s; }
+function randSession(){ return String(100000 + Math.floor(Math.random()*900000)); }
+const fmtSess = s => s ? s.slice(0,3)+" "+s.slice(3) : "…";
+// Code-Art erkennen: 6 Ziffern = Mitmach-Code, 4 Zeichen = Rätsel-Code
+function codeKind(raw){
+  const v = (raw||"").replace(/\s+/g,"").toUpperCase();
+  if(/^\d{6}$/.test(v)) return {kind:"join", v};
+  if(/^[A-Z2-9]{4}$/.test(v) && decode(v)) return {kind:"puzzle", v};
+  return {kind: /^\d+$/.test(v) ? "partjoin" : "none", v};
+}
+let codeMode = "join";
+function setCodeMode(m){
+  codeMode = m; const inp = $("codeIn"); inp.value = ""; $("homeErr").textContent = "";
+  if(m==="join"){
+    $("jTitle").textContent="Mitmachen"; $("jSub").textContent="Zahl vom Beamer oder von der Gruppe";
+    inp.inputMode="numeric"; inp.maxLength=7; inp.placeholder="123 456"; inp.autocapitalize="off";
+    $("jSwitch").textContent="Ich habe einen Rätsel-Code";
+  } else {
+    $("jTitle").textContent="Rätsel spielen"; $("jSub").textContent="Rätsel-Code eintippen, um genau dieses Rätsel zu lösen";
+    inp.inputMode="text"; inp.maxLength=4; inp.placeholder="E83H"; inp.autocapitalize="characters";
+    $("jSwitch").textContent="Zurück zum Mitmachen";
+  }
+  updateCodeBtn(); inp.focus();
+}
+function updateCodeBtn(){
+  const inp = $("codeIn");
+  if(codeMode==="join"){ // nur Ziffern, automatisch als «123 456» formatiert
+    const d = inp.value.replace(/\D/g,"").slice(0,6);
+    const f = d.length>3 ? d.slice(0,3)+" "+d.slice(3) : d;
+    if(inp.value!==f) inp.value = f;
+    $("codeGo").disabled = d.length!==6; $("codeGo").textContent = "Mitmachen";
+  } else {
+    const v = inp.value.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,4);
+    if(inp.value!==v) inp.value = v;
+    $("codeGo").disabled = v.length!==4; $("codeGo").textContent = "Rätsel spielen";
+  }
+  $("homeErr").textContent="";
+}
 
 /* ================= Hilfen ================= */
 const $ = id => document.getElementById(id);
@@ -354,7 +431,7 @@ function newGame(code){
   const blocks = new Map(); facesToBlocks(f).forEach(l=>{ const [r,c]=labelToRC(l); blocks.set(r*6+c,l); });
   G = { code, blocks, pieces: PIECES.map(p=>({...p, shape:norm(p.s), pos:null})), start:0, done:false, sel:null, ms:null };
   $("gameCode").textContent = code;
-  $("liveLb").innerHTML = "";
+  $("liveLb").innerHTML = ""; hide("winOv"); $("bw").classList.remove("solved");
   applyCell(); renderAll();
   return true;
 }
@@ -498,31 +575,50 @@ function checkWin(){
   if(G.done || !G.pieces.every(p=>p.pos)) return;
   G.done = true; G.ms = Math.round(performance.now()-G.start);
   $("timer").textContent = fmt(G.ms);
-  saveBest(G.ms, G.code);
+  const rank = saveBest(G.ms, G.code);
+  $("bw").classList.add("solved");
   $("winTime").textContent = fmt(G.ms);
-  const btns = $("winBtns"); btns.innerHTML="";
+  const badge = $("winBadge");
+  badge.className = "rbadge " + (rank===1 ? "gold" : "soft");
+  badge.textContent = rank===1 ? "Neue Bestzeit!" : rank ? `Persönlich #${rank}` : "";
+  const btns = $("winBtns");
   if(MODE==="solo"){
-    $("winInfo").innerHTML = `Rätsel <b>${G.code}</b> · Code weitergeben für dasselbe Rätsel`;
+    $("winLabel").textContent = "Gelöst";
+    $("winInfo").innerHTML = `<span>Rätsel <b>${G.code}</b></span><button onclick="shareCode()">Code teilen</button>`;
     $("winLb").innerHTML = "";
-    btns.innerHTML = `<button onclick="hide('winOv');goHome()">Menü</button><button class="primary" onclick="hide('winOv');startSolo()">Neues Rätsel</button>`;
+    btns.innerHTML = `<button onclick="goHome()">Menü</button><button onclick="playCode('${G.code}')">Nochmals</button><button class="primary" onclick="startSolo()">Neues Rätsel</button>`;
   } else {
-    $("winInfo").textContent = MODE==="duelhost" ? "Rangliste der Gruppe" : "Deine Zeit wurde gesendet.";
+    $("winLabel").textContent = "Gelöst";
+    $("winInfo").innerHTML = `<span class="lbhead">${MODE==="duelhost" ? "Rangliste der Gruppe" : "Rangliste · Zeit gesendet"}</span>`;
     if(MODE==="client") sendHost({t:"done", round:C.round, ms:G.ms});
     if(MODE==="duelhost") hostRecord(H.me, G.ms);
-    btns.innerHTML = `<button onclick="hide('winOv')">Schliessen</button>`;
-    if(MODE==="duelhost") btns.innerHTML += `<button class="primary" onclick="hide('winOv');hostStartRound()">Nächste Runde</button>`;
+    btns.innerHTML = MODE==="duelhost" ? `<button class="primary" onclick="hostStartRound()">Nächste Runde</button>`
+      : `<div class="muted" style="font-size:14px;text-align:center;width:100%">Warte auf die nächste Runde…</div>`;
     renderClientLb();
   }
   showOv("winOv");
+  setTimeout(()=>$("winOv").scrollIntoView({behavior:"smooth", block:"nearest"}), 50);
 }
 function saveBest(ms, code){
-  const b = store.get("gsq-best", []); b.push({ms, code, d:new Date().toISOString().slice(0,10)});
-  b.sort((a,b)=>a.ms-b.ms); store.set("gsq-best", b.slice(0,5));
+  const b = store.get("gsq-best", []); const e = {ms, code, d:new Date().toISOString().slice(0,10)}; b.push(e);
+  b.sort((a,b)=>a.ms-b.ms); const top = b.slice(0,5); store.set("gsq-best", top);
+  const i = top.indexOf(e); return i<0 ? 0 : i+1;
 }
 function renderBests(){
   const b = store.get("gsq-best", []);
-  $("bests").innerHTML = b.length ? `<h3>Deine Bestzeiten</h3><div class="lb">`+
-    b.map((x,i)=>`<div class="it"><span class="rk">${i+1}.</span><span class="nm">${fmt(x.ms)}</span><span class="code">${x.code}</span></div>`).join("")+`</div>` : "";
+  $("bests").innerHTML = b.length ? `<h3>Deine Bestzeiten <span style="font-weight:400">· antippen zum Nochmals-Spielen</span></h3><div class="lb">`+
+    b.map((x,i)=>`<button class="it" onclick="playCode('${x.code}')"><span class="rk">${i+1}.</span><span class="nm">${fmt(x.ms)}</span><span class="code">${x.code}</span><span class="play">▶</span></button>`).join("")+`</div>` : "";
+}
+function playCode(code){
+  if(!decode(code)) return;
+  cleanup(); MODE="solo"; newGame(code); show("game"); window.scrollTo(0,0);
+  G.start=0; countdown(()=>G.start=performance.now());
+}
+function shareCode(){
+  const url = location.origin + location.pathname + "?p=" + G.code;
+  const text = `Genius Square: Schaffst du Rätsel ${G.code} schneller als ${fmt(G.ms)}?`;
+  if(navigator.share) navigator.share({title:"Genius Square", text, url}).catch(()=>{});
+  else { try{ navigator.clipboard.writeText(text+" "+url); msg("Link kopiert."); }catch(e){ msg(url); } }
 }
 
 function countdown(then){
@@ -549,15 +645,14 @@ function leave(){ if(MODE!=="solo" && MODE!=="none" && !confirm("Wirklich verlas
 function cleanup(){ try{ peer && peer.destroy(); }catch(e){} peer=null; H=null; C=null; ["winOv","countOv"].forEach(hide); }
 
 function startSolo(){
-  cleanup(); MODE="solo"; newGame(encode(rollFaces())); show("game");
+  cleanup(); MODE="solo"; newGame(encode(rollFaces())); show("game"); window.scrollTo(0,0);
   G.start=0; rollAnim($("board"), ()=>{ G.start=performance.now(); });
 }
 function enterCode(){
-  const v = $("codeIn").value.trim().toUpperCase(); $("homeErr").textContent="";
-  if(v.length===4){ if(!decode(v)) return $("homeErr").textContent="Ungültiger Rätsel-Code.";
-    cleanup(); MODE="solo"; newGame(v); show("game"); G.start=0; countdown(()=>G.start=performance.now()); return; }
-  if(v.length===5 && /^[A-Z2-9]{5}$/.test(v)) return askName(v);
-  $("homeErr").textContent="Code hat 4 oder 5 Zeichen.";
+  const v = $("codeIn").value.replace(/\s+/g,"").toUpperCase(); $("homeErr").textContent="";
+  if(codeMode==="join"){ if(/^\d{6}$/.test(v)) return askName(v); return; }
+  if(decode(v)) return playCode(v);
+  $("homeErr").textContent="Diesen Rätsel-Code gibt es nicht. Nochmals prüfen?";
 }
 
 /* ---------- Namen ---------- */
@@ -602,14 +697,14 @@ function openHost(kind, myName){
 function joinUrl(){ return location.origin + location.pathname + "?join=" + H.session; }
 function hostReady(){
   if(MODE==="classhost"){
-    $("hostCode").textContent = H.session;
-    $("hostCode2").textContent = H.session;
+    $("hostCode").textContent = fmtSess(H.session);
+    $("hostCode2").textContent = fmtSess(H.session);
     $("qr").innerHTML=""; try{ new QRCode($("qr"), {text:joinUrl(), width:340, height:340, correctLevel:QRCode.CorrectLevel.M}); }catch(e){}
     $("hostUrl").textContent = location.host ? location.host + location.pathname : "";
   } else {
-    $("waitCode").textContent = H.session;
+    $("waitCode").textContent = fmtSess(H.session);
     $("qrDuel").innerHTML=""; try{ new QRCode($("qrDuel"), {text:joinUrl(), width:300, height:300, correctLevel:QRCode.CorrectLevel.M}); }catch(e){}
-    $("waitHint").textContent = "Die anderen wählen «Mit Code beitreten» oder scannen den QR-Code. Bis zu 6 Personen.";
+    $("waitHint").textContent = "Die anderen scannen den QR-Code oder geben die Zahl im Menü ein. Bis zu 6 Personen.";
   }
   hostBroadcastLobby();
 }
@@ -645,7 +740,7 @@ function hostBroadcastLobby(){
     $("waitPlayers").innerHTML = pills;
     const ready = H.players.size>=2;
     $("waitStart").style.display = ready ? "block" : "none";
-    $("waitHint").textContent = ready ? `${H.players.size} von 6 dabei. Starten oder auf weitere warten.` : "Die anderen wählen «Mit Code beitreten» oder scannen den QR-Code. Bis zu 6 Personen.";
+    $("waitHint").textContent = ready ? `${H.players.size} von 6 dabei. Starten oder auf weitere warten.` : "Die anderen scannen den QR-Code oder geben die Zahl im Menü ein. Bis zu 6 Personen.";
   }
 }
 function lbEntries(){
@@ -695,7 +790,7 @@ function hostStartRound(){
 function joinSession(sess, name){
   cleanup(); MODE="client"; C = {sess, name, round:0, entries:[], you:null, conn:null};
   show("wait"); $("waitTitle").textContent="Verbinde…"; $("waitCodeBox").style.display="none";
-  $("waitStart").style.display="none"; $("waitPlayers").innerHTML=""; $("waitHint").textContent="Code "+sess;
+  $("waitStart").style.display="none"; $("waitPlayers").innerHTML=""; $("waitHint").textContent="Mitmach-Code "+fmtSess(sess);
   if(typeof Peer==="undefined"){ return connFail(); }
   peer = new Peer();
   const to = setTimeout(()=>{ if(!C || !C.ok) connFail(); }, 10000);
@@ -707,13 +802,13 @@ function joinSession(sess, name){
     c.on("close", ()=>{ if(MODE==="client"){ msg("Verbindung zum Host verloren. Du kannst das aktuelle Rätsel fertig spielen."); } });
   });
   peer.on("error", err=>{ clearTimeout(to);
-    if(err.type==="peer-unavailable") { MODE="none"; show("home"); $("homeErr").textContent="Keine Runde mit diesem Code gefunden."; return; }
+    if(err.type==="peer-unavailable") { MODE="none"; show("home"); $("homeErr").textContent="Keine Runde mit dieser Zahl gefunden. Nochmals prüfen?"; return; }
     if(!C || !C.ok) connFail(); });
 }
 function connFail(){
   if(MODE!=="client") return;
   cleanup(); MODE="none"; show("home");
-  $("homeErr").textContent="Keine Verbindung möglich. Frag nach dem 4-stelligen Rätsel-Code und spiel ihn solo.";
+  setCodeMode("puzzle"); $("homeErr").textContent="Keine Verbindung möglich. Tippe den Rätsel-Code vom Beamer ein, dann spielst du dasselbe Rätsel.";
 }
 function sendHost(d){ try{ C && C.conn && C.conn.send(d); }catch(e){} }
 function clientData(d){
@@ -736,8 +831,11 @@ function renderClientLb(){
 
 /* ================= Start ================= */
 applyCell(); renderBests();
-(function(){ const j = new URLSearchParams(location.search).get("join");
-  if(j && /^[A-Z2-9]{5}$/i.test(j)) askName(j.toUpperCase()); })();
+(function(){ const q = new URLSearchParams(location.search), pz = q.get("p");
+  if(pz && decode(pz.toUpperCase())) { playCode(pz.toUpperCase()); return; }
+  const j = q.get("join");
+  if(j && /^\d{6}$/.test(j)) askName(j); })();
+$("codeIn").addEventListener("input", updateCodeBtn);
 $("codeIn").addEventListener("keydown", e=>{ if(e.key==="Enter") enterCode(); });
 $("nameIn").addEventListener("keydown", e=>{ if(e.key==="Enter") $("nameGo").click(); });
 </script>
