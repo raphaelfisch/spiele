@@ -386,7 +386,7 @@ function show(id){
   document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("on", s.id===id));
   window.scrollTo(0,0);
   // Zurück-Taste des Handys soll nicht die Seite verlassen, sondern «leave()» auslösen
-  if(id!=="home"){ try{ if(!(history.state && history.state.gs)) history.pushState({gs:1},""); }catch(e){} }
+  armGuard();
 }
 const current = () => document.querySelector(".screen.on").id;
 function showOv(id){ $(id).classList.add("on"); }
@@ -698,20 +698,34 @@ function playSolo(code){ if(!decode(code)) return; cleanup(); MODE="solo"; playP
 /* ================= Verlassen ================= */
 function goHome(){
   cleanup(); MODE="none"; G=null; renderBests(); show("home");
-  try{ if(location.search) history.replaceState(history.state,"",location.pathname); }catch(e){}
+  try{
+    if(location.search) history.replaceState(history.state,"",location.pathname);
+    if(history.state && history.state.gs) history.back();   // Sperr-Eintrag wieder entfernen
+  }catch(e){}
 }
 async function leave(){
   let ok = true;
   if(MODE==="beamer" || MODE==="group") ok = await ask("Runde beenden? Alle anderen werden getrennt.", "Beenden", "Weiterspielen");
   else if(MODE==="player")              ok = await ask("Runde verlassen?", "Verlassen", "Bleiben");
   else if(MODE==="solo" && G && G.start && !G.done) ok = await ask("Rätsel abbrechen?", "Abbrechen", "Weiterspielen");
-  if(ok) goHome();
+  if(ok) goHome(); else armGuard();
 }
-window.addEventListener("popstate", ()=>{   // Zurück-Taste
+/* Zurück-Taste / Zurück-Wischgeste:
+   Solange man nicht auf dem Startbildschirm ist, liegt ein zusätzlicher «Sperr-Eintrag» im Verlauf.
+   Zurück entfernt nur diesen Eintrag -> wir fragen nach, statt die Seite zu verlassen.
+   Browser akzeptieren solche Einträge nur nach einer Berührung, darum wird er bei jedem Antippen
+   (falls nötig) neu gesetzt. */
+function armGuard(){
   if(current()==="home") return;
-  try{ history.pushState({gs:1},""); }catch(e){}
+  try{ if(!(history.state && history.state.gs)) history.pushState({gs:1},""); }catch(e){}
+}
+document.addEventListener("pointerdown", armGuard, true);
+window.addEventListener("popstate", ()=>{
+  if(current()==="home") return;
   if($("askOv").classList.contains("on")) return;
-  current()==="nameScr" ? goHome() : leave();
+  if(current()==="nameScr") return goHome();
+  if(MODE==="solo" && !(G && G.start && !G.done)) return goHome();   // nichts zu verlieren
+  leave();
 });
 function cleanup(){
   try{ peer && peer.destroy(); }catch(e){}
