@@ -540,15 +540,19 @@ document.addEventListener("pointerdown", e=>{
   const tp = e.target.closest(".piece"); const bc = e.target.closest("#board .cell.p");
   if(!tp && !bc) return;
   e.preventDefault();
-  let p, grab;
+  let p, grab, cellEl = null;
   if(tp){ p = pieceById(tp.dataset.p);
-    const pc = e.target.closest(".pc");
+    const pc = e.target.closest(".pc"); cellEl = pc;
     grab = pc ? [+pc.dataset.r, +pc.dataset.c] : p.shape[0];
   } else {
-    p = pieceById(bc.dataset.p); const i=+bc.dataset.i;
+    p = pieceById(bc.dataset.p); const i=+bc.dataset.i; cellEl = bc;
     grab = [Math.floor(i/6)-p.pos[0], i%6-p.pos[1]];
   }
-  pend = {p, grab, x:e.clientX, y:e.clientY, fromBoard:!!bc, touch:e.pointerType!=="mouse", id:e.pointerId};
+  // genaue Griffstelle innerhalb des Feldes merken, damit das Teil beim Ziehen nicht springt
+  let fx=.5, fy=.5;
+  if(cellEl){ const r = cellEl.getBoundingClientRect();
+    fx = Math.min(1, Math.max(0, (e.clientX-r.left)/r.width)); fy = Math.min(1, Math.max(0, (e.clientY-r.top)/r.height)); }
+  pend = {p, grab, fx, fy, x:e.clientX, y:e.clientY, fromBoard:!!bc, id:e.pointerId};
 });
 document.addEventListener("pointermove", e=>{
   if(pend && !drag){
@@ -576,7 +580,7 @@ document.addEventListener("pointercancel", ()=>{ pend=null; if(drag){ drag=null;
 function buildGhost(){
   ghost && ghost.remove();
   const cs = cellSize(), p = drag.p, [R,C] = dims(p.shape);
-  if(!p.shape.some(([r,c])=>r===drag.grab[0]&&c===drag.grab[1])) drag.grab = p.shape[0];
+  if(!p.shape.some(([r,c])=>r===drag.grab[0]&&c===drag.grab[1])){ drag.grab = p.shape[0]; drag.fx = drag.fy = .5; }
   ghost = document.createElement("div"); ghost.className="ghost";
   ghost.style.gridTemplateColumns=`repeat(${C},${cs}px)`; ghost.style.gridTemplateRows=`repeat(${R},${cs}px)`;
   const set = new Set(p.shape.map(([r,c])=>r*10+c)); let h="";
@@ -584,8 +588,8 @@ function buildGhost(){
   ghost.innerHTML=h; document.body.appendChild(ghost);
 }
 function ghostOrigin(x,y){ // linke obere Ecke des Teils (Bildschirm)
-  const cs = cellSize(), lift = drag.touch ? cs*1.3 : 0;
-  return [x - (drag.grab[1]+.5)*cs, y - (drag.grab[0]+.5)*cs - lift];
+  const cs = cellSize();
+  return [x - (drag.grab[1]+drag.fx)*cs, y - (drag.grab[0]+drag.fy)*cs];
 }
 function target(x,y){
   const [gx,gy] = ghostOrigin(x,y), b = $("board").getBoundingClientRect(), cs = cellSize();
