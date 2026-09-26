@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="de-CH">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Genius Square</title>
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root{
+  --bg:#f3ede3; --panel:#fffdf8; --ink:#1d1d1f; --muted:#6b6560; --line:#ddd4c6;
+  --board:#1f2126; --slot:#2c2f36; --slot-line:#3a3e47; --accent:#1f7a5a; --accent-ink:#fff;
+  --warn:#c0392b; --die:#f5f5f2; --die-ink:#1d1d1f;
+  --cell:56px;
+}
+@media (prefers-color-scheme: dark){ :root{
+  --bg:#141518; --panel:#1d1f23; --ink:#ecebe8; --muted:#9a968f; --line:#33363c;
+  --board:#0d0e10; --slot:#22252b; --slot-line:#30343b; --accent:#2fa37a;
+}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+  display:flex;flex-direction:column;align-items:center;overscroll-behavior:none;touch-action:manipulation}
+.screen{display:none;width:100%;max-width:560px;padding:16px;flex-direction:column;align-items:center;gap:14px}
+.screen.on{display:flex}
+h1{font-size:28px;margin:18px 0 0;letter-spacing:.5px}
+h1 small{display:block;font-size:14px;font-weight:500;color:var(--muted);letter-spacing:0;margin-top:4px}
+.menu{display:flex;flex-direction:column;gap:10px;width:100%;max-width:340px;margin-top:8px}
+button{font:inherit;font-weight:600;border:0;border-radius:12px;padding:14px 16px;cursor:pointer;
+  background:var(--panel);color:var(--ink);box-shadow:0 0 0 1px var(--line) inset}
+button.primary{background:var(--accent);color:var(--accent-ink);box-shadow:none}
+button:disabled{opacity:.45;cursor:default}
+button small{display:block;font-weight:400;font-size:13px;color:var(--muted);margin-top:2px}
+button.primary small{color:rgba(255,255,255,.8)}
+.row{display:flex;gap:8px;width:100%;max-width:340px}
+.row > *{flex:1}
+input{font:inherit;font-size:20px;padding:12px 14px;border-radius:12px;border:1px solid var(--line);
+  background:var(--panel);color:var(--ink);width:100%;text-align:center;letter-spacing:3px;text-transform:uppercase}
+input.name{text-transform:none;letter-spacing:0}
+.hint{color:var(--muted);font-size:14px;text-align:center;max-width:380px;line-height:1.4}
+.err{color:var(--warn);font-size:14px;text-align:center;min-height:1em}
+
+/* Kopfzeile im Spiel */
+.bar{display:flex;align-items:center;justify-content:space-between;width:100%;gap:8px}
+.timer{font-variant-numeric:tabular-nums;font-size:26px;font-weight:700}
+.code{font-size:13px;color:var(--muted)} .code b{color:var(--ink);letter-spacing:2px;font-size:15px}
+.iconbtn{padding:8px 12px;font-size:14px}
+
+/* Brett */
+.boardwrap{background:var(--board);border-radius:16px;padding:10px 10px 10px 30px;position:relative;user-select:none}
+.cols,.rows{position:absolute;color:#6fa8dc;font-weight:800;font-size:calc(var(--cell)*.3)}
+.cols{top:-2px;left:30px;display:grid;grid-template-columns:repeat(6,var(--cell));height:10px}
+.cols span{text-align:center;transform:translateY(-100%)}
+.rows{left:6px;top:10px;display:grid;grid-template-rows:repeat(6,var(--cell));width:20px}
+.rows span{display:flex;align-items:center;justify-content:center}
+.boardwrap{margin-top:calc(var(--cell)*.35)}
+.board{display:grid;grid-template-columns:repeat(6,var(--cell));grid-template-rows:repeat(6,var(--cell));gap:0}
+.cell{background:var(--slot);box-shadow:0 0 0 1px var(--slot-line) inset;position:relative}
+.cell.p{box-shadow:none;border-radius:4px;margin:1px;cursor:grab;
+  background-image:linear-gradient(145deg,rgba(255,255,255,.18),rgba(0,0,0,.12))}
+.cell.blk{background:var(--die);border-radius:8px;margin:3px;display:flex;align-items:center;justify-content:center;
+  font-weight:800;color:var(--die-ink);font-size:calc(var(--cell)*.3);box-shadow:0 2px 0 rgba(0,0,0,.35)}
+.cell.blk.roll{animation:wob .12s infinite alternate}
+@keyframes wob{from{transform:rotate(-8deg) scale(.95)}to{transform:rotate(8deg) scale(1.02)}}
+.cell.ok::after,.cell.bad::after{content:"";position:absolute;inset:3px;border-radius:5px;border:3px solid}
+.cell.ok::after{border-color:#7ee2b8} .cell.bad::after{border-color:#ff7b6b}
+
+/* Ablage */
+.tray{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:12px 14px;width:100%;
+  min-height:120px;padding:10px;border-radius:14px;background:var(--panel);box-shadow:0 0 0 1px var(--line) inset}
+.piece{display:grid;gap:0;cursor:grab;touch-action:none;padding:3px;border-radius:8px}
+.piece.sel{outline:2px dashed var(--accent);outline-offset:2px}
+.piece .pc{border-radius:3px;margin:1px;background-image:linear-gradient(145deg,rgba(255,255,255,.2),rgba(0,0,0,.12))}
+.board .cell.p, .board{touch-action:none}
+.ghost{position:fixed;left:0;top:0;pointer-events:none;display:grid;z-index:50;opacity:.9;filter:drop-shadow(0 6px 10px rgba(0,0,0,.35))}
+.ghost .pc{border-radius:4px;margin:1px;background-image:linear-gradient(145deg,rgba(255,255,255,.2),rgba(0,0,0,.12))}
+.tools{display:flex;gap:8px;width:100%}
+.tools button{flex:1;padding:10px}
+
+/* Overlays */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:100;padding:16px}
+.overlay.on{display:flex}
+.card{background:var(--panel);border-radius:18px;padding:22px;width:100%;max-width:360px;text-align:center;display:flex;flex-direction:column;gap:12px}
+.card .big{font-size:40px;font-weight:800;font-variant-numeric:tabular-nums}
+.count{font-size:120px;font-weight:900;color:#fff}
+
+/* Rangliste */
+.lb{width:100%;max-width:420px;display:flex;flex-direction:column;gap:4px}
+.lb .it{display:flex;justify-content:space-between;padding:8px 12px;border-radius:10px;background:var(--panel);box-shadow:0 0 0 1px var(--line) inset;font-variant-numeric:tabular-nums}
+.lb .it.me{box-shadow:0 0 0 2px var(--accent) inset}
+.lb .it.wait{color:var(--muted)}
+.lb .rk{width:28px;color:var(--muted)}
+.lb .nm{flex:1}
+
+/* Beamer / Host */
+#host.screen{max-width:1200px}
+.hostgrid{display:flex;gap:28px;align-items:flex-start;justify-content:center;flex-wrap:wrap;width:100%}
+.joinbox{display:flex;flex-direction:column;align-items:center;gap:10px;background:var(--panel);border-radius:18px;padding:20px;box-shadow:0 0 0 1px var(--line) inset}
+.joinbox .sc{font-size:54px;font-weight:900;letter-spacing:8px}
+#qr{background:#fff;padding:10px;border-radius:10px}
+#qr img,#qr canvas{display:block;width:200px;height:200px}
+.side{display:flex;flex-direction:column;gap:12px;min-width:280px;align-items:center}
+.pill{display:inline-block;padding:4px 10px;border-radius:99px;background:var(--panel);box-shadow:0 0 0 1px var(--line) inset;margin:3px;font-size:15px}
+.players{max-width:420px;text-align:center}
+.bigtimer{font-size:64px;font-weight:800;font-variant-numeric:tabular-nums}
+.lb.big .it{font-size:22px;padding:10px 16px}
+.bests{width:100%;max-width:340px}
+.bests h3{font-size:15px;margin:10px 0 6px;color:var(--muted);font-weight:600}
+</style>
+</head>
+<body>
+
+<!-- ============ START ============ -->
+<section class="screen on" id="home">
+  <h1>Genius Square<small>9 Teile · 7 Würfel · ein Quadrat</small></h1>
+  <div class="menu">
+    <button class="primary" onclick="startSolo()">Solo spielen<small>Würfeln und auf Zeit lösen</small></button>
+    <button onclick="startHost('duel')">Duell starten<small>Gegen eine Person, gleiches Rätsel</small></button>
+    <button onclick="startHost('class')">Klassenrunde<small>Beamer-Ansicht mit Live-Rangliste</small></button>
+  </div>
+  <div class="row" style="margin-top:6px">
+    <input id="codeIn" maxlength="5" placeholder="CODE" autocomplete="off" autocapitalize="characters">
+  </div>
+  <div class="row"><button onclick="enterCode()">Mit Code beitreten</button></div>
+  <div class="err" id="homeErr"></div>
+  <p class="hint">4-stelliger Code: dieses Rätsel solo spielen.<br>5-stelliger Code: einem Duell oder einer Klassenrunde beitreten.</p>
+  <div class="bests" id="bests"></div>
+</section>
+
+<!-- ============ NAME ============ -->
+<section class="screen" id="nameScr">
+  <h1 id="nameTitle">Beitreten</h1>
+  <p class="hint" id="nameHint">Wie sollst du in der Rangliste heissen?</p>
+  <div class="row"><input class="name" id="nameIn" maxlength="16" placeholder="Vorname oder Kürzel" autocomplete="off"></div>
+  <div class="row"><button onclick="goHome()">Zurück</button><button class="primary" id="nameGo">Weiter</button></div>
+  <div class="err" id="nameErr"></div>
+</section>
+
+<!-- ============ WARTEN (Client / Duell-Host) ============ -->
+<section class="screen" id="wait">
+  <h1 id="waitTitle">Warten…</h1>
+  <div class="joinbox" id="waitCodeBox" style="display:none">
+    <div class="hint">Code für die andere Person</div>
+    <div class="sc" id="waitCode"></div>
+  </div>
+  <p class="hint" id="waitHint"></p>
+  <div class="players" id="waitPlayers"></div>
+  <button class="primary" id="waitStart" style="display:none" onclick="hostStartRound()">Los geht's</button>
+  <button onclick="leave()">Abbrechen</button>
+</section>
+
+<!-- ============ SPIEL ============ -->
+<section class="screen" id="game">
+  <div class="bar">
+    <button class="iconbtn" onclick="leave()">✕</button>
+    <div class="timer" id="timer">0:00.0</div>
+    <div class="code">Rätsel <b id="gameCode"></b></div>
+  </div>
+  <div class="boardwrap" id="bw">
+    <div class="cols"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span></div>
+    <div class="rows"><span>A</span><span>B</span><span>C</span><span>D</span><span>E</span><span>F</span></div>
+    <div class="board" id="board"></div>
+  </div>
+  <div class="tools">
+    <button onclick="rotateSel()">↻ Drehen</button>
+    <button onclick="flipSel()">⇋ Spiegeln</button>
+  </div>
+  <div class="tray" id="tray"></div>
+  <p class="hint">Antippen = auswählen, nochmals antippen = drehen · ziehen = legen · gelegtes Teil antippen = zurück</p>
+  <div class="lb" id="liveLb"></div>
+</section>
+
+<!-- ============ BEAMER ============ -->
+<section class="screen" id="host">
+  <div class="hostgrid">
+    <div class="side">
+      <div class="joinbox">
+        <div class="hint">Beitreten mit Code</div>
+        <div class="sc" id="hostCode">…</div>
+        <div id="qr"></div>
+        <div class="hint" id="hostUrl"></div>
+      </div>
+      <div class="players" id="hostPlayers"></div>
+    </div>
+    <div class="side">
+      <div class="bigtimer" id="hostTimer">0:00.0</div>
+      <div class="code" id="hostPuzzleLine" style="font-size:18px"></div>
+      <div class="boardwrap" id="hbw" style="--cell:70px">
+        <div class="cols"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span></div>
+        <div class="rows"><span>A</span><span>B</span><span>C</span><span>D</span><span>E</span><span>F</span></div>
+        <div class="board" id="hboard"></div>
+      </div>
+      <div class="row" style="max-width:420px">
+        <button onclick="leave()">Beenden</button>
+        <button class="primary" id="hostGo" onclick="hostStartRound()">Runde starten</button>
+      </div>
+    </div>
+    <div class="side">
+      <div class="lb big" id="hostLb"></div>
+    </div>
+  </div>
+</section>
+
+<!-- Overlays -->
+<div class="overlay" id="countOv"><div class="count" id="countNum">3</div></div>
+<div class="overlay" id="winOv"><div class="card">
+  <div>Gelöst!</div>
+  <div class="big" id="winTime"></div>
+  <div class="hint" id="winInfo"></div>
+  <div class="lb" id="winLb"></div>
+  <div class="row" style="max-width:none" id="winBtns"></div>
+</div></div>
+<div class="overlay" id="msgOv"><div class="card">
+  <div id="msgText"></div>
+  <button class="primary" onclick="hide('msgOv')">OK</button>
+</div></div>
+
+<script>
+/* ================= Daten ================= */
+// Originale Würfel (verifiziert: alle 62'208 Würfe lösbar)
+const DICE = [
+  ["A1","C1","D1","D2","E2","F3"],
+  ["A2","B2","C2","A3","B1","B3"],
+  ["C3","D3","E3","B4","C4","D4"],
+  ["E1","F2","F2","B6","A5","A5"],
+  ["A4","B5","C6","C5","D6","F6"],
+  ["E4","F4","E5","F5","D5","E6"],
+  ["F1","F1","F1","A6","A6","A6"],
+];
+const PIECES = [
+  {id:"blau",   col:"#2346c8", s:[[0,0]]},
+  {id:"braun",  col:"#8a5a36", s:[[0,0],[0,1]]},
+  {id:"orange", col:"#f28c18", s:[[0,0],[0,1],[0,2]]},
+  {id:"violett",col:"#9b3fa3", s:[[0,0],[1,0],[0,1]]},
+  {id:"grau",   col:"#6c6c6c", s:[[0,0],[0,1],[0,2],[0,3]]},
+  {id:"gruen",  col:"#2e9e57", s:[[0,0],[0,1],[1,0],[1,1]]},
+  {id:"hellblau",col:"#2ab3e8", s:[[0,0],[1,0],[2,0],[2,1]]},
+  {id:"rot",    col:"#e0322b", s:[[0,1],[0,2],[1,0],[1,1]]},
+  {id:"gelb",   col:"#f2d31b", s:[[0,0],[0,1],[0,2],[1,1]]},
+];
+const ALPH = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // ohne I, O, 0, 1
+const PEER_PREFIX = "gsq-rf-v1-";
+
+/* ================= Rätsel-Code ================= */
+function rollFaces(){ return DICE.map(()=>Math.floor(Math.random()*6)); }
+function encode(f){ let n=0; for(let i=6;i>=0;i--) n=n*6+f[i]; let s="";
+  for(let i=0;i<4;i++){ s=ALPH[n%32]+s; n=Math.floor(n/32);} return s; }
+function decode(code){ code=(code||"").toUpperCase(); if(!/^[A-Z2-9]{4}$/.test(code)) return null;
+  let n=0; for(const ch of code){ const v=ALPH.indexOf(ch); if(v<0) return null; n=n*32+v; }
+  if(n>=6**7) return null; const f=[]; for(let i=0;i<7;i++){ f.push(n%6); n=Math.floor(n/6);} return f; }
+const facesToBlocks = f => f.map((x,i)=>DICE[i][x]);
+const labelToRC = l => ["ABCDEF".indexOf(l[0]), +l[1]-1];
+function randSession(){ let s=""; for(let i=0;i<5;i++) s+=ALPH[Math.floor(Math.random()*32)]; return s; }
+
+/* ================= Hilfen ================= */
+const $ = id => document.getElementById(id);
+function show(id){ document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("on", s.id===id)); }
+function showOv(id){ $(id).classList.add("on"); } function hide(id){ $(id).classList.remove("on"); }
+function msg(t){ $("msgText").textContent=t; showOv("msgOv"); }
+function fmt(ms){ if(ms==null) return "–"; const t=Math.floor(ms/100), d=t%10, s=Math.floor(t/10)%60, m=Math.floor(t/600);
+  return m+":"+String(s).padStart(2,"0")+"."+d; }
+const esc = s => String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const store = {
+  get(k,d){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):d; }catch(e){ return d; } },
+  set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
+};
+
+/* ================= Geometrie ================= */
+function norm(s){ const mr=Math.min(...s.map(p=>p[0])), mc=Math.min(...s.map(p=>p[1]));
+  return s.map(([r,c])=>[r-mr,c-mc]).sort((a,b)=>a[0]-b[0]||a[1]-b[1]); }
+const rot = s => norm(s.map(([r,c])=>[c,-r]));
+const flp = s => norm(s.map(([r,c])=>[r,-c]));
+const dims = s => [Math.max(...s.map(p=>p[0]))+1, Math.max(...s.map(p=>p[1]))+1];
+
+/* ================= Spielzustand ================= */
+let G = null; // {code, blocks:Set, pieces:[{...,shape,pos}], start, done, sel}
+let timerRAF = 0;
+
+function cellSize(){
+  const w = Math.min(window.innerWidth, 560) - 32 - 40 - 4;
+  const h = window.innerHeight - 420;
+  return Math.max(36, Math.min(64, Math.floor(Math.min(w, Math.max(h,240))/6)));
+}
+function applyCell(){ document.documentElement.style.setProperty("--cell", cellSize()+"px"); }
+window.addEventListener("resize", ()=>{ applyCell(); if(G) renderAll(); });
+
+function newGame(code){
+  const f = decode(code); if(!f) return false;
+  const blocks = new Map(); facesToBlocks(f).forEach(l=>{ const [r,c]=labelToRC(l); blocks.set(r*6+c,l); });
+  G = { code, blocks, pieces: PIECES.map(p=>({...p, shape:norm(p.s), pos:null})), start:0, done:false, sel:null, ms:null };
+  $("gameCode").textContent = code;
+  $("liveLb").innerHTML = "";
+  applyCell(); renderAll();
+  return true;
+}
+
+function occupancy(except){
+  const occ = new Map();
+  for(const [k] of G.blocks) occ.set(k,"blk");
+  for(const p of G.pieces) if(p.pos && p!==except) for(const [r,c] of p.shape) occ.set((p.pos[0]+r)*6+p.pos[1]+c, p);
+  return occ;
+}
+function fits(p, shape, r0, c0){
+  const occ = occupancy(p);
+  for(const [r,c] of shape){ const rr=r0+r, cc=c0+c;
+    if(rr<0||rr>5||cc<0||cc>5||occ.has(rr*6+cc)) return false; }
+  return true;
+}
+
+function renderBoard(el, forGame){
+  const occ = forGame ? occupancy(null) : new Map([...G.blocks].map(([k])=>[k,"blk"]));
+  let h="";
+  for(let i=0;i<36;i++){
+    const o = occ.get(i);
+    if(o==="blk") h+=`<div class="cell blk" data-i="${i}">${G.blocks.get(i)}</div>`;
+    else if(o) h+=`<div class="cell p" data-i="${i}" data-p="${o.id}" style="background-color:${o.col}"></div>`;
+    else h+=`<div class="cell" data-i="${i}"></div>`;
+  }
+  el.innerHTML = h;
+}
+function renderTray(){
+  const tc = Math.round(cellSize()*0.55);
+  let h="";
+  for(const p of G.pieces){ if(p.pos || (drag && drag.p===p)) continue;
+    const [R,C]=dims(p.shape);
+    h+=`<div class="piece${G.sel===p?" sel":""}" data-p="${p.id}" style="grid-template-columns:repeat(${C},${tc}px);grid-template-rows:repeat(${R},${tc}px)">`;
+    const set = new Set(p.shape.map(([r,c])=>r*10+c));
+    for(let r=0;r<R;r++) for(let c=0;c<C;c++)
+      h+= set.has(r*10+c) ? `<div class="pc" data-r="${r}" data-c="${c}" style="background-color:${p.col}"></div>` : `<div></div>`;
+    h+=`</div>`;
+  }
+  $("tray").innerHTML = h || `<span class="hint">Alle Teile gelegt</span>`;
+}
+function renderAll(){ renderBoard($("board"), true); renderTray(); }
+
+/* ================= Drehen / Spiegeln ================= */
+function transformPiece(p, fn){
+  if(!p || G.done) return;
+  const ns = fn(p.shape);
+  if(p.pos){ if(fits(p, ns, p.pos[0], p.pos[1])) p.shape = ns; else { p.pos=null; p.shape=ns; } }
+  else p.shape = ns;
+  renderAll();
+}
+function rotateSel(){ transformPiece(G && G.sel, rot); }
+function flipSel(){ transformPiece(G && G.sel, flp); }
+window.addEventListener("keydown", e=>{
+  if(!G || !$("game").classList.contains("on")) return;
+  const p = drag ? drag.p : G.sel;
+  if(e.key==="r"||e.key==="R"){ if(drag){ drag.p.shape=rot(drag.p.shape); drag.grab=[0,0]; buildGhost(); moveGhost(drag.lx,drag.ly);} else rotateSel(); }
+  if(e.key==="f"||e.key==="F"){ if(drag){ drag.p.shape=flp(drag.p.shape); drag.grab=[0,0]; buildGhost(); moveGhost(drag.lx,drag.ly);} else flipSel(); }
+});
+
+/* ================= Ziehen ================= */
+let drag = null, ghost = null, pend = null;
+
+function pieceById(id){ return G.pieces.find(p=>p.id===id); }
+
+document.addEventListener("pointerdown", e=>{
+  if(!G || G.done || !G.start || !$("game").classList.contains("on")) return;
+  const tp = e.target.closest(".piece"); const bc = e.target.closest("#board .cell.p");
+  if(!tp && !bc) return;
+  e.preventDefault();
+  let p, grab;
+  if(tp){ p = pieceById(tp.dataset.p);
+    const pc = e.target.closest(".pc");
+    grab = pc ? [+pc.dataset.r, +pc.dataset.c] : p.shape[0];
+  } else {
+    p = pieceById(bc.dataset.p); const i=+bc.dataset.i;
+    grab = [Math.floor(i/6)-p.pos[0], i%6-p.pos[1]];
+  }
+  pend = {p, grab, x:e.clientX, y:e.clientY, fromBoard:!!bc, touch:e.pointerType!=="mouse", id:e.pointerId};
+});
+document.addEventListener("pointermove", e=>{
+  if(pend && !drag){
+    if(Math.hypot(e.clientX-pend.x, e.clientY-pend.y) < 7) return;
+    drag = {...pend, lx:e.clientX, ly:e.clientY}; pend=null;
+    G.sel = drag.p;
+    if(drag.p.pos){ drag.p.pos=null; }
+    renderAll(); buildGhost();
+  }
+  if(drag){ e.preventDefault(); drag.lx=e.clientX; drag.ly=e.clientY; moveGhost(e.clientX,e.clientY); }
+}, {passive:false});
+document.addEventListener("pointerup", e=>{
+  if(pend){ // Antippen
+    const p = pend.p; pend=null;
+    if(p.pos){ p.pos=null; G.sel=p; renderAll(); }
+    else { if(G.sel===p) p.shape=rot(p.shape); G.sel=p; renderAll(); }
+    return;
+  }
+  if(drag){ const t = target(drag.lx, drag.ly);
+    if(t && fits(drag.p, drag.p.shape, t[0], t[1])) drag.p.pos = t;
+    drag=null; ghost && ghost.remove(); ghost=null; renderAll(); checkWin(); }
+});
+document.addEventListener("pointercancel", ()=>{ pend=null; if(drag){ drag=null; ghost&&ghost.remove(); ghost=null; renderAll(); } });
+
+function buildGhost(){
+  ghost && ghost.remove();
+  const cs = cellSize(), p = drag.p, [R,C] = dims(p.shape);
+  if(!p.shape.some(([r,c])=>r===drag.grab[0]&&c===drag.grab[1])) drag.grab = p.shape[0];
+  ghost = document.createElement("div"); ghost.className="ghost";
+  ghost.style.gridTemplateColumns=`repeat(${C},${cs}px)`; ghost.style.gridTemplateRows=`repeat(${R},${cs}px)`;
+  const set = new Set(p.shape.map(([r,c])=>r*10+c)); let h="";
+  for(let r=0;r<R;r++) for(let c=0;c<C;c++) h+= set.has(r*10+c)?`<div class="pc" style="background-color:${p.col}"></div>`:`<div></div>`;
+  ghost.innerHTML=h; document.body.appendChild(ghost);
+}
+function ghostOrigin(x,y){ // linke obere Ecke des Teils (Bildschirm)
+  const cs = cellSize(), lift = drag.touch ? cs*1.3 : 0;
+  return [x - (drag.grab[1]+.5)*cs, y - (drag.grab[0]+.5)*cs - lift];
+}
+function target(x,y){
+  const [gx,gy] = ghostOrigin(x,y), b = $("board").getBoundingClientRect(), cs = cellSize();
+  return [Math.round((gy-b.top)/cs), Math.round((gx-b.left)/cs)];
+}
+function moveGhost(x,y){
+  const [gx,gy] = ghostOrigin(x,y);
+  ghost.style.transform = `translate(${gx}px,${gy}px)`;
+  document.querySelectorAll("#board .cell.ok,#board .cell.bad").forEach(c=>c.classList.remove("ok","bad"));
+  const t = target(x,y), ok = fits(drag.p, drag.p.shape, t[0], t[1]);
+  const cells = $("board").children;
+  for(const [r,c] of drag.p.shape){ const rr=t[0]+r, cc=t[1]+c;
+    if(rr>=0&&rr<6&&cc>=0&&cc<6) cells[rr*6+cc].classList.add(ok?"ok":"bad"); }
+}
+
+/* ================= Timer & Ziel ================= */
+function tick(){
+  if(G && G.start && !G.done) $("timer").textContent = fmt(performance.now()-G.start);
+  if(H && H.roundStart && H.running) $("hostTimer").textContent = fmt(performance.now()-H.roundStart);
+  timerRAF = requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+
+function checkWin(){
+  if(G.done || !G.pieces.every(p=>p.pos)) return;
+  G.done = true; G.ms = Math.round(performance.now()-G.start);
+  $("timer").textContent = fmt(G.ms);
+  saveBest(G.ms, G.code);
+  $("winTime").textContent = fmt(G.ms);
+  const btns = $("winBtns"); btns.innerHTML="";
+  if(MODE==="solo"){
+    $("winInfo").innerHTML = `Rätsel <b>${G.code}</b> · Code weitergeben für dasselbe Rätsel`;
+    $("winLb").innerHTML = "";
+    btns.innerHTML = `<button onclick="hide('winOv');goHome()">Menü</button><button class="primary" onclick="hide('winOv');startSolo()">Neues Rätsel</button>`;
+  } else {
+    $("winInfo").textContent = "Deine Zeit wurde gesendet.";
+    if(MODE==="client") sendHost({t:"done", round:C.round, ms:G.ms});
+    if(MODE==="duelhost") hostRecord(H.me, G.ms);
+    btns.innerHTML = `<button onclick="hide('winOv')">Schliessen</button>`;
+    if(MODE==="duelhost") btns.innerHTML += `<button class="primary" onclick="hide('winOv');hostStartRound()">Revanche</button>`;
+    renderClientLb();
+  }
+  showOv("winOv");
+}
+function saveBest(ms, code){
+  const b = store.get("gsq-best", []); b.push({ms, code, d:new Date().toISOString().slice(0,10)});
+  b.sort((a,b)=>a.ms-b.ms); store.set("gsq-best", b.slice(0,5));
+}
+function renderBests(){
+  const b = store.get("gsq-best", []);
+  $("bests").innerHTML = b.length ? `<h3>Deine Bestzeiten</h3><div class="lb">`+
+    b.map((x,i)=>`<div class="it"><span class="rk">${i+1}.</span><span class="nm">${fmt(x.ms)}</span><span class="code">${x.code}</span></div>`).join("")+`</div>` : "";
+}
+
+function countdown(then){
+  let n=3; $("countNum").textContent=n; showOv("countOv");
+  const iv = setInterval(()=>{ n--; if(n>0) $("countNum").textContent=n; else { clearInterval(iv); hide("countOv"); then(); } }, 800);
+}
+function rollAnim(boardEl, then){
+  // kurze Würfel-Animation: zufällige Beschriftungen, dann das echte Rätsel
+  const real = new Map(G.blocks); let k=0;
+  const iv = setInterval(()=>{
+    G.blocks = new Map(); facesToBlocks(rollFaces()).forEach(l=>{ const [r,c]=labelToRC(l); G.blocks.set(r*6+c,l); });
+    renderBoard(boardEl, false); boardEl.querySelectorAll(".blk").forEach(x=>x.classList.add("roll"));
+    if(++k>6){ clearInterval(iv); G.blocks=real; renderBoard(boardEl, boardEl.id==="board"); then&&then(); }
+  }, 90);
+}
+
+/* ================= Modi ================= */
+let MODE = "none"; // solo | client | duelhost | classhost
+let peer = null, H = null, C = null;
+
+function goHome(){ cleanup(); MODE="none"; G=null; renderBests(); show("home"); history.replaceState(null,"",location.pathname); }
+function leave(){ if(MODE!=="solo" && MODE!=="none" && !confirm("Wirklich verlassen?")) return; goHome(); }
+function cleanup(){ try{ peer && peer.destroy(); }catch(e){} peer=null; H=null; C=null; ["winOv","countOv"].forEach(hide); }
+
+function startSolo(){
+  cleanup(); MODE="solo"; newGame(encode(rollFaces())); show("game");
+  G.start=0; rollAnim($("board"), ()=>{ G.start=performance.now(); });
+}
+function enterCode(){
+  const v = $("codeIn").value.trim().toUpperCase(); $("homeErr").textContent="";
+  if(v.length===4){ if(!decode(v)) return $("homeErr").textContent="Ungültiger Rätsel-Code.";
+    cleanup(); MODE="solo"; newGame(v); show("game"); G.start=0; countdown(()=>G.start=performance.now()); return; }
+  if(v.length===5 && /^[A-Z2-9]{5}$/.test(v)) return askName(v);
+  $("homeErr").textContent="Code hat 4 oder 5 Zeichen.";
+}
+
+/* ---------- Namen ---------- */
+function askName(session, host){
+  show("nameScr"); $("nameErr").textContent="";
+  $("nameTitle").textContent = host ? "Duell starten" : "Beitreten";
+  $("nameIn").value = store.get("gsq-name","");
+  $("nameGo").onclick = ()=>{
+    const n = $("nameIn").value.trim().slice(0,16);
+    if(!n) return $("nameErr").textContent="Bitte einen Namen eingeben.";
+    store.set("gsq-name", n);
+    host ? openHost("duel", n) : joinSession(session, n);
+  };
+  setTimeout(()=>$("nameIn").focus(), 50);
+}
+
+/* ---------- Host ---------- */
+function startHost(kind){ if(kind==="duel") return askName(null, true); openHost("class"); }
+
+function openHost(kind, myName){
+  cleanup();
+  MODE = kind==="duel" ? "duelhost" : "classhost";
+  H = { kind, conns:new Map(), players:new Map(), round:0, code:null, results:new Map(), running:false, me:"host", roundStart:0 };
+  if(myName) H.players.set("host", myName);
+  const tryOpen = () => {
+    const sess = randSession(); H.session = sess;
+    peer = new Peer(PEER_PREFIX+sess);
+    peer.on("open", ()=>hostReady());
+    peer.on("connection", c=>hostConn(c));
+    peer.on("error", err=>{
+      if(err.type==="unavailable-id"){ try{peer.destroy();}catch(e){} tryOpen(); return; }
+      if(err.type==="peer-unavailable") return;
+      msg("Verbindungsproblem ("+err.type+"). Solo spielen geht trotzdem.");
+    });
+  };
+  if(typeof Peer==="undefined"){ msg("Die Verbindungs-Bibliothek konnte nicht geladen werden. Ist Internet vorhanden?"); goHome(); return; }
+  tryOpen();
+  if(MODE==="classhost"){ show("host"); $("hostCode").textContent="…"; G=null; hostRenderIdle(); }
+  else { show("wait"); $("waitTitle").textContent="Duell"; $("waitCodeBox").style.display="flex"; $("waitCode").textContent="…";
+    $("waitHint").textContent="Verbinde…"; $("waitStart").style.display="none"; $("waitPlayers").innerHTML=""; }
+}
+function joinUrl(){ return location.origin + location.pathname + "?join=" + H.session; }
+function hostReady(){
+  if(MODE==="classhost"){
+    $("hostCode").textContent = H.session;
+    $("qr").innerHTML=""; try{ new QRCode($("qr"), {text:joinUrl(), width:200, height:200, correctLevel:QRCode.CorrectLevel.M}); }catch(e){}
+    $("hostUrl").textContent = location.host ? location.host + location.pathname : "";
+  } else {
+    $("waitCode").textContent = H.session;
+    $("waitHint").textContent = "Die andere Person wählt «Mit Code beitreten» und gibt diesen Code ein.";
+  }
+  hostBroadcastLobby();
+}
+function hostConn(c){
+  c.on("data", d=>hostData(c,d));
+  c.on("close", ()=>{ H && (H.conns.delete(c.peer), H.players.delete(c.peer), hostBroadcastLobby(), hostRenderLb()); });
+  c.on("error", ()=>{});
+}
+function hostData(c, d){
+  if(!H || !d || typeof d!=="object") return;
+  if(d.t==="hello"){
+    if(H.kind==="duel" && H.players.size>=2 && !H.players.has(c.peer)){ c.send({t:"full"}); return; }
+    H.conns.set(c.peer, c); H.players.set(c.peer, String(d.name||"?").slice(0,16));
+    hostBroadcastLobby();
+    if(H.running) c.send({t:"start", round:H.round, code:H.code, late:true});
+    hostRenderLb();
+  }
+  if(d.t==="done" && d.round===H.round && H.running) hostRecord(c.peer, Math.max(0, +d.ms||0));
+}
+function hostRecord(pid, ms){
+  if(H.results.has(pid)) return;
+  H.results.set(pid, ms);
+  hostBroadcastBoard(); hostRenderLb();
+  const all = [...H.players.keys()].every(k=>H.results.has(k));
+  if(all && H.kind==="class"){ H.running=false; $("hostGo").textContent="Nächste Runde"; $("hostGo").disabled=false; }
+}
+function hostBroadcastLobby(){
+  const names = [...H.players.values()];
+  for(const c of H.conns.values()) try{ c.send({t:"lobby", names}); }catch(e){}
+  const pills = names.map(n=>`<span class="pill">${esc(n)}</span>`).join("");
+  if(MODE==="classhost"){ $("hostPlayers").innerHTML = names.length ? `<div class="hint">${names.length} verbunden</div>`+pills : `<div class="hint">Noch niemand verbunden</div>`; }
+  if(MODE==="duelhost" && H.round===0){
+    $("waitPlayers").innerHTML = pills;
+    const ready = H.players.size>=2;
+    $("waitStart").style.display = ready ? "block" : "none";
+    if(ready) $("waitHint").textContent = "Beide da. Los geht's!";
+  }
+}
+function lbEntries(){
+  return [...H.players.entries()].map(([k,n])=>({k, name:n, ms:H.results.has(k)?H.results.get(k):null}))
+    .sort((a,b)=>(a.ms==null)-(b.ms==null) || (a.ms??0)-(b.ms??0) || a.name.localeCompare(b.name));
+}
+function hostBroadcastBoard(){
+  const entries = lbEntries().map(e=>({name:e.name, ms:e.ms, k:e.k}));
+  for(const [k,c] of H.conns) try{ c.send({t:"board", round:H.round, entries, you:k}); }catch(e){}
+  if(MODE==="duelhost"){ C = C || {}; C.entries = entries; C.you = "host"; renderClientLb(); }
+}
+function lbHtml(entries, you){
+  let rk=0;
+  return entries.map(e=>{ const done=e.ms!=null; if(done) rk++;
+    return `<div class="it${done?"":" wait"}${e.k===you?" me":""}"><span class="rk">${done?rk+".":""}</span><span class="nm">${esc(e.name)}</span><span>${done?fmt(e.ms):"läuft…"}</span></div>`; }).join("");
+}
+function hostRenderLb(){ if(MODE!=="classhost") return;
+  $("hostLb").innerHTML = H.round ? lbHtml(lbEntries(), null) : ""; }
+function hostRenderIdle(){
+  $("hostPuzzleLine").textContent="Klasse verbinden, dann «Runde starten»";
+  $("hostTimer").textContent="0:00.0"; $("hboard").innerHTML = Array(36).fill('<div class="cell"></div>').join("");
+  $("hostGo").textContent="Runde starten"; $("hostGo").disabled=false; $("hostLb").innerHTML="";
+}
+function hostStartRound(){
+  if(!H) return;
+  if(H.kind==="class" && H.players.size===0 && !confirm("Noch niemand verbunden. Trotzdem starten?")) return;
+  H.round++; H.code = encode(rollFaces()); H.results = new Map(); H.running = true; H.roundStart = 0;
+  for(const c of H.conns.values()) try{ c.send({t:"start", round:H.round, code:H.code}); }catch(e){}
+  if(MODE==="classhost"){
+    G = {code:H.code, blocks:new Map(), pieces:[]};
+    facesToBlocks(decode(H.code)).forEach(l=>{ const [r,c]=labelToRC(l); G.blocks.set(r*6+c,l); });
+    $("hostPuzzleLine").innerHTML = `Rätsel-Code <b style="letter-spacing:3px">${H.code}</b> <span class="hint">(ohne Verbindung: diesen Code eingeben)</span>`;
+    $("hostGo").disabled = true; $("hostGo").textContent="Runde läuft…";
+    setTimeout(()=>{ $("hostGo").disabled=false; $("hostGo").textContent="Nächste Runde"; }, 5000);
+    rollAnim($("hboard"), ()=>countdown(()=>{ H.roundStart=performance.now(); }));
+    hostRenderLb();
+  } else {
+    playRound(H.code, "host");
+  }
+}
+
+/* ---------- Client ---------- */
+function joinSession(sess, name){
+  cleanup(); MODE="client"; C = {sess, name, round:0, entries:[], you:null, conn:null};
+  show("wait"); $("waitTitle").textContent="Verbinde…"; $("waitCodeBox").style.display="none";
+  $("waitStart").style.display="none"; $("waitPlayers").innerHTML=""; $("waitHint").textContent="Code "+sess;
+  if(typeof Peer==="undefined"){ return connFail(); }
+  peer = new Peer();
+  const to = setTimeout(()=>{ if(!C || !C.ok) connFail(); }, 10000);
+  peer.on("open", ()=>{
+    const c = peer.connect(PEER_PREFIX+sess, {reliable:true}); C.conn=c;
+    c.on("open", ()=>{ C.ok=true; clearTimeout(to); c.send({t:"hello", name});
+      $("waitTitle").textContent="Verbunden"; $("waitHint").textContent="Warte, bis die Runde startet…"; });
+    c.on("data", d=>clientData(d));
+    c.on("close", ()=>{ if(MODE==="client"){ msg("Verbindung zum Host verloren. Du kannst das aktuelle Rätsel fertig spielen."); } });
+  });
+  peer.on("error", err=>{ clearTimeout(to);
+    if(err.type==="peer-unavailable") { MODE="none"; show("home"); $("homeErr").textContent="Keine Runde mit diesem Code gefunden."; return; }
+    if(!C || !C.ok) connFail(); });
+}
+function connFail(){
+  if(MODE!=="client") return;
+  cleanup(); MODE="none"; show("home");
+  $("homeErr").textContent="Keine Verbindung möglich. Frag nach dem 4-stelligen Rätsel-Code und spiel ihn solo.";
+}
+function sendHost(d){ try{ C && C.conn && C.conn.send(d); }catch(e){} }
+function clientData(d){
+  if(!d || typeof d!=="object" || MODE!=="client") return;
+  if(d.t==="full"){ msg("Dieses Duell ist schon voll."); goHome(); }
+  if(d.t==="lobby"){ $("waitPlayers").innerHTML = d.names.map(n=>`<span class="pill">${esc(n)}</span>`).join(""); }
+  if(d.t==="start"){ C.round=d.round; C.entries=[]; hide("winOv"); playRound(d.code, null); }
+  if(d.t==="board" && d.round===C.round){ C.entries=d.entries; C.you=d.you; renderClientLb(); }
+}
+function playRound(code, _){
+  newGame(code); show("game"); G.start=0;
+  rollAnim($("board"), ()=>countdown(()=>{ G.start=performance.now(); }));
+}
+function renderClientLb(){
+  if(!C || !C.entries) return;
+  const html = lbHtml(C.entries, C.you);
+  $("liveLb").innerHTML = G && G.done ? html : "";
+  $("winLb").innerHTML = html;
+}
+
+/* ================= Start ================= */
+applyCell(); renderBests();
+(function(){ const j = new URLSearchParams(location.search).get("join");
+  if(j && /^[A-Z2-9]{5}$/i.test(j)) askName(j.toUpperCase()); })();
+$("codeIn").addEventListener("keydown", e=>{ if(e.key==="Enter") enterCode(); });
+$("nameIn").addEventListener("keydown", e=>{ if(e.key==="Enter") $("nameGo").click(); });
+</script>
+</body>
+</html>
