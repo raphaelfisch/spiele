@@ -478,7 +478,8 @@ function rollAnim(boardEl, then){
 let MODE = "none"; // solo | client | duelhost | classhost
 let peer = null, H = null, C = null;
 
-function goHome(){ cleanup(); MODE="none"; G=null; renderBests(); show("home"); history.replaceState(null,"",location.pathname); }
+function goHome(){ cleanup(); MODE="none"; G=null; renderBests(); show("home");
+  try{ if(location.search) history.replaceState(null,"",location.pathname); }catch(e){} }
 function leave(){ if(MODE!=="solo" && MODE!=="none" && !confirm("Wirklich verlassen?")) return; goHome(); }
 function cleanup(){ try{ peer && peer.destroy(); }catch(e){} peer=null; H=null; C=null; ["winOv","countOv"].forEach(hide); }
 
