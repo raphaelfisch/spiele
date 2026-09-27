@@ -424,19 +424,25 @@ const store = {
   set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
 };
 function show(id){
+  // Safari: Eingabefeld bleibt nach «Weiter» fokussiert (Tastatur-Modus) -> beim Wechsel loslassen
+  const ae = document.activeElement; if(ae && ae.tagName==="INPUT") ae.blur();
   document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("on", s.id===id));
   window.scrollTo(0,0);
   // Zurück-Taste des Handys soll nicht die Seite verlassen, sondern «leave()» auslösen
   armGuard(); updateScrollLock();
 }
 const current = () => document.querySelector(".screen.on").id;
+// Nur mit Maus/Tastatur automatisch ins Feld springen. Auf Handy/iPad würde das Feld «halb» aktiv
+// (ohne Tastatur), die Seite liesse sich dann verschieben.
+function focusDesktop(el){ if(window.matchMedia("(pointer:fine)").matches) el.focus(); }
 function showOv(id){ $(id).classList.add("on"); }
 // Sichtbare Höhe merken (iPad/iPhone: 100vh ist dort grösser als der sichtbare Bereich)
 function setAppHeight(){ document.documentElement.style.setProperty("--app-h", window.innerHeight+"px"); }
 // Sperren, wenn der aktuelle Bildschirm ganz hineinpasst; sonst normal scrollen lassen
 function updateScrollLock(){
   const scr = document.querySelector(".screen.on");
-  const typing = document.activeElement && document.activeElement.tagName==="INPUT";   // Tastatur offen
+  const ae = document.activeElement;   // Tastatur offen = Eingabefeld auf diesem Bildschirm aktiv
+  const typing = ae && ae.tagName==="INPUT" && scr.contains(ae);
   const fits = Math.max(scr.offsetHeight, scr.scrollHeight) <= window.innerHeight + 1 && scr.scrollWidth <= window.innerWidth + 1;
   document.documentElement.classList.toggle("lock", fits && !typing);
 }
@@ -748,7 +754,7 @@ function setCodeMode(m){
   inp.inputMode = join ? "numeric" : "text"; inp.maxLength = join ? 7 : 4;
   inp.placeholder = join ? "123 456" : "E83H"; inp.autocapitalize = join ? "off" : "characters";
   $("jSwitch").textContent = join ? "Ich habe einen Rätsel-Code" : "Zurück zum Mitmachen";
-  updateCodeBtn(); inp.focus();
+  updateCodeBtn(); focusDesktop(inp);
 }
 function updateCodeBtn(){
   const inp = $("codeIn");
@@ -826,7 +832,7 @@ function askName(kind, session){   // kind: "join" (mitmachen) | "group" (Gruppe
     store.set("gsq-name", n);
     kind==="group" ? openGroup(n) : joinRound(session, n);
   };
-  setTimeout(()=>$("nameIn").focus(), 50);
+  setTimeout(()=>focusDesktop($("nameIn")), 50);
 }
 
 /* ================= Host: Gruppe & Klassenrunde ================= */
