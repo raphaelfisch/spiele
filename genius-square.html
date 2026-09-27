@@ -168,6 +168,14 @@ input{font:inherit;font-size:20px;padding:12px 14px;border-radius:12px;border:1p
 .lb .rk{width:28px;color:var(--muted)}
 .lb .nm{flex:1}
 
+/* ================= Verbindungs-Hinweis oben ================= */
+.net{position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:90;display:none;align-items:center;gap:8px;
+  background:#3a2c00;color:#fff;font-size:14px;font-weight:600;padding:8px 14px;border-radius:99px;box-shadow:0 4px 14px rgba(0,0,0,.25);white-space:nowrap}
+.net.on{display:flex}
+.net::before{content:"";width:10px;height:10px;border-radius:50%;border:2px solid #fff;border-top-color:transparent;animation:turn .8s linear infinite}
+@keyframes turn{to{transform:rotate(360deg)}}
+.pill.off{opacity:.4}
+
 /* ================= Popups ================= */
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:100;padding:16px}
 .overlay.on{display:flex;animation:fade .15s ease-out}
@@ -368,6 +376,9 @@ input{font:inherit;font-size:20px;padding:12px 14px;border-radius:12px;border:1p
   </div>
 </section>
 
+<!-- ============ VERBINDUNGS-HINWEIS ============ -->
+<div class="net" id="net"></div>
+
 <!-- ============ POPUPS ============ -->
 <div class="overlay" id="countOv"><div class="count" id="countNum">3</div></div>
 <div class="overlay" id="msgOv"><div class="card popup">
@@ -532,14 +543,20 @@ function fitGame(){     // Nachmessen: Schriften sind je nach Gerät etwas grös
   }
 }
 
-// Spiel aufbauen, Würfel-Animation, Countdown, dann läuft die Zeit
-function playPuzzle(code){
+// Spiel aufbauen, Würfel-Animation, Countdown, dann läuft die Zeit.
+// saved = gespeicherter Stand nach F5: Teile und Zeit werden übernommen, ohne Animation.
+function playPuzzle(code, saved){
   G = { code, blocks:blocksOf(code), pieces:PIECES.map(p=>({...p, shape:norm(p.s), pos:null})),
         start:0, done:false, ms:0, sel:null, anim:null };
   $("gameCode").textContent = code; $("timer").textContent = "0:00.0";
   hide("result"); $("resLb").innerHTML = ""; $("bw").classList.remove("solved");
+  if(saved && saved.startWall){
+    for(const sp of saved.pieces||[]){ const p = pieceById(sp.id); if(p){ p.shape = sp.shape; p.pos = sp.pos; } }
+    G.start = perfFromWall(saved.startWall); G.done = !!saved.done; G.ms = saved.ms||0;
+  }
   show("game"); applyCell(); renderAll(); fitGame();
-  rollAnim(()=>countdown(()=>{ G.start = performance.now(); renderAll(); }));
+  if(G.done) showResult(0);
+  else if(!G.start) rollAnim(()=>countdown(()=>{ G.start = performance.now(); renderAll(); saveState(); }));
 }
 
 function occupancy(except){
@@ -702,9 +719,15 @@ function rollAnim(then){   // kurz zufällige Würfel zeigen, dann das echte Rä
 function checkWin(){
   if(G.done || !G.pieces.every(p=>p.pos)) return;
   G.done = true; G.ms = Math.round(performance.now()-G.start);
+  const rank = saveBest(G.ms, G.code);
+  if(MODE==="player") sendToHost({t:"done", round:C.round, ms:G.ms});
+  if(MODE==="group")  hostRecord("host", G.ms);
+  showResult(rank); saveState();
+}
+function showResult(rank){   // rank: Platz in den persönlichen Bestzeiten (0 = keiner / nach F5)
   $("timer").textContent = fmt(G.ms); $("resTime").textContent = fmt(G.ms);
   $("bw").classList.add("solved"); renderAll();
-  const rank = saveBest(G.ms, G.code), badge = $("resBadge");
+  const badge = $("resBadge");
   badge.className = "badge " + (rank===1 ? "gold" : "soft");
   badge.textContent = rank===1 ? "Neue Bestzeit!" : rank ? `Persönlich #${rank}` : "";
   if(MODE==="solo"){
@@ -714,8 +737,6 @@ function checkWin(){
       + `<button onclick="goHome()">Menü</button><button onclick="playSolo('${G.code}')">Nochmals</button>`;
   } else {
     $("resInfo").innerHTML = `<span class="lbhead">Rangliste</span>`;
-    if(MODE==="player") sendToHost({t:"done", round:C.round, ms:G.ms});
-    if(MODE==="group")  hostRecord("host", G.ms);
     renderResultButtons(); renderLeaderboard();
   }
   showOv("result");
@@ -783,7 +804,7 @@ function playSolo(code){ if(!decode(code)) return; cleanup(); MODE="solo"; playP
 
 /* ================= Verlassen ================= */
 function goHome(){
-  cleanup(); MODE="none"; G=null; renderBests(); show("home");
+  cleanup(); MODE="none"; G=null; renderBests(); show("home"); saveState();
   try{
     if(location.search) history.replaceState(history.state,"",location.pathname);
     if(history.state && history.state.gs){ ownBack = true; history.back(); }   // Sperr-Eintrag wieder entfernen
@@ -815,14 +836,69 @@ window.addEventListener("popstate", ()=>{
   if(MODE==="solo" && !(G && G.start && !G.done)) return goHome();   // nichts zu verlieren
   leave();
 });
+// Absichtlich verlassen: die anderen sofort informieren (sonst wird auf eine Rückkehr gewartet)
 function cleanup(){
-  try{ peer && peer.destroy(); }catch(e){}
-  peer = null; H = null; C = null;
+  if(H) for(const c of H.conns.values()) try{ c.send({t:"bye"}); }catch(e){}
+  if(C){ if(C.conn) try{ C.conn.send({t:"leave"}); }catch(e){} clearTimeout(C.retryT); clearTimeout(C.firstT); }
+  const old = peer; peer = null; H = null; C = null; LB = null; netStatus("");
+  setTimeout(()=>{ try{ old && old.destroy(); }catch(e){} }, 300);   // kurz warten, damit «bye» ankommt
   ["result","countOv","askOv"].forEach(hide);
+}
+function netStatus(text){ $("net").textContent = text; $("net").classList.toggle("on", !!text); }
+
+/* ================= Zustand merken (F5, Handy gesperrt, App gewechselt) =================
+   Pro Browser-Tab (sessionStorage): F5 behält alles, ein neuer Tab beginnt frisch. */
+const tabStore = {
+  get(k){ try{ return JSON.parse(sessionStorage.getItem(k)||"null"); }catch(e){ return null; } },
+  set(k,v){ try{ sessionStorage.setItem(k, JSON.stringify(v)); }catch(e){} },
+};
+const wallFromPerf = t => Date.now() - (performance.now() - t);   // Zeitpunkte über F5 hinweg retten
+const perfFromWall = w => performance.now() - (Date.now() - w);
+function myPid(){   // feste Kennung dieses Tabs, damit man nach F5 als dieselbe Person erkannt wird
+  let id = tabStore.get("gsq-pid");
+  if(!id){ id = Math.random().toString(36).slice(2,10); tabStore.set("gsq-pid", id); }
+  return id;
+}
+function gameState(){
+  if(!G || current()!=="game") return null;
+  return { code:G.code, startWall: G.start ? wallFromPerf(G.start) : 0, done:G.done, ms:G.ms,
+           pieces: G.pieces.map(p=>({id:p.id, shape:p.shape, pos:p.pos})) };
+}
+let NAME_CTX = null;   // offene Namenseingabe {kind, session}
+function saveState(){
+  const st = {mode:MODE, screen:current()};
+  if(MODE==="solo") st.game = gameState();
+  if(MODE==="player" && C) Object.assign(st, {session:C.session, name:C.name, pid:C.pid, round:C.round, kind:C.kind, game:gameState(), lb:LB});
+  if((MODE==="group" || MODE==="beamer") && H) Object.assign(st, { game: MODE==="group" ? gameState() : null, host:{
+      kind:H.kind, session:H.session, round:H.round, code:H.code, running:H.running,
+      roundStartWall: H.roundStart ? wallFromPerf(H.roundStart) : 0,
+      players:[...H.players], results:[...H.results] }});
+  if(MODE==="none" && current()==="nameScr") st.nameCtx = NAME_CTX;
+  tabStore.set("gsq-state", st);
+}
+setInterval(saveState, 1000);
+window.addEventListener("pagehide", saveState);
+document.addEventListener("visibilitychange", ()=>{ if(document.hidden) saveState(); else wake(); });
+window.addEventListener("online", wake);
+function wake(){   // zurück aus der Tasche / anderer App: Verbindung sofort prüfen
+  if(MODE==="player" && C && !C.ended && !C.conn && C.everOk){ clearTimeout(C.retryT); C.retryT = null; reconnectPlayer(); }
+  if((MODE==="group" || MODE==="beamer") && H){
+    if(!peer || peer.destroyed) hostPeer();
+    else if(peer.disconnected) try{ peer.reconnect(); }catch(e){}
+  }
+}
+function restore(st){
+  if(!st) return false;
+  if(st.mode==="solo" && st.game){ MODE="solo"; playPuzzle(st.game.code, st.game); return true; }
+  if(st.mode==="player" && st.session){ joinRound(st.session, st.name, st); return true; }
+  if((st.mode==="group" || st.mode==="beamer") && st.host){ restoreHost(st); return true; }
+  if(st.screen==="nameScr" && st.nameCtx){ askName(st.nameCtx.kind, st.nameCtx.session); return true; }
+  return false;
 }
 
 /* ================= Name ================= */
 function askName(kind, session){   // kind: "join" (mitmachen) | "group" (Gruppe eröffnen)
+  NAME_CTX = {kind, session};
   show("nameScr"); $("nameErr").textContent = "";
   $("nameTitle").textContent = kind==="group" ? "Gruppe starten" : "Mitmachen";
   $("nameIn").value = store.get("gsq-name","");
@@ -835,94 +911,131 @@ function askName(kind, session){   // kind: "join" (mitmachen) | "group" (Gruppe
   setTimeout(()=>focusDesktop($("nameIn")), 50);
 }
 
-/* ================= Host: Gruppe & Klassenrunde ================= */
-
-function openHost(kind, myName){
-  cleanup();
-  if(typeof Peer==="undefined"){ msg("Keine Internetverbindung. Solo spielen geht trotzdem."); return false; }
-  H = { kind, session:null, conns:new Map(), players:new Map(), round:0, code:null, results:new Map(), running:false, roundStart:0 };
-  if(myName) H.players.set("host", myName);
-  const tryOpen = () => {
-    H.session = String(100000 + Math.floor(Math.random()*900000));
-    peer = new Peer(PEER_PREFIX + H.session);
-    peer.on("open", hostReady);
-    peer.on("connection", hostConn);
-    peer.on("error", err=>{
-      if(err.type==="unavailable-id"){ try{ peer.destroy(); }catch(e){} tryOpen(); return; }   // Zahl schon vergeben
-      if(err.type==="peer-unavailable") return;
-      msg("Die Verbindung hat ein Problem. Prüfe das Internet. Solo spielen geht trotzdem.");
-    });
-  };
-  tryOpen();
-  return true;
+/* ================= Host: Gruppe & Klassenrunde =================
+   H.players: pid -> {name, online}. Wer die Verbindung verliert, bleibt in der Liste
+   und wird bei der Rückkehr (gleiche pid) wiedererkannt – samt bereits gelöster Zeit. */
+function newHost(kind, myName){
+  H = { kind, session:String(100000 + Math.floor(Math.random()*900000)), conns:new Map(), players:new Map(),
+        round:0, code:null, results:new Map(), running:false, roundStart:0, announced:false, tries:0 };
+  if(myName) H.players.set("host", {name:myName, online:true});
 }
-function openGroup(name){
-  if(!openHost("group", name)) return goHome();
-  MODE = "group";
+function hostPeer(){   // Verbindung mit fester Nummer öffnen (nach F5 wieder dieselbe Nummer)
+  if(!H) return;
+  if(typeof Peer==="undefined"){ netStatus("Keine Internetverbindung…"); return; }
+  const me = new Peer(PEER_PREFIX + H.session); peer = me;
+  me.on("open", ()=>{ if(peer!==me || !H) return; H.announced = true; H.tries = 0; netStatus(""); hostReady(); });
+  me.on("connection", hostConn);
+  me.on("disconnected", ()=>{ if(peer===me && !me.destroyed) setTimeout(()=>{ try{ me.reconnect(); }catch(e){} }, 1000); });
+  me.on("error", err=>{
+    if(peer!==me || !H) return;
+    if(err.type==="peer-unavailable") return;
+    try{ me.destroy(); }catch(e){}
+    if(err.type==="unavailable-id" && !H.announced){   // Zahl zufällig schon vergeben -> neue Zahl
+      H.session = String(100000 + Math.floor(Math.random()*900000)); return hostPeer();
+    }
+    // Nummer ist nach dem Neuladen noch kurz belegt oder das Netz ist weg: gleiche Nummer erneut versuchen
+    if(++H.tries <= 40){ netStatus("Verbinde wieder…"); setTimeout(()=>{ if(H && peer===me) hostPeer(); }, 2500); return; }
+    netStatus(""); msg("Die Verbindung ist weg. Prüfe das Internet und eröffne die Runde neu.");
+  });
+}
+function hostReady(){
+  if(H.kind==="class"){ $("bCode").textContent = $("bCode2").textContent = fmtSession(H.session); makeQR($("qrBeamer"), 340); }
+  else { $("waitCode").textContent = fmtSession(H.session); makeQR($("qrGroup"), 300); }
+  renderLobby();
+}
+function groupWaitView(){
   $("waitTitle").textContent = "Gruppe"; $("waitCard").style.display = "";
-  $("waitCode").textContent = "…"; $("qrGroup").innerHTML = "";
+  $("waitCode").textContent = H.announced ? fmtSession(H.session) : "…"; $("qrGroup").innerHTML = "";
   $("waitHint").textContent = "Verbinde…"; $("waitLeave").textContent = "Abbrechen";
   $("waitStart").style.display = "none"; $("waitPlayers").innerHTML = "";
   show("wait");
 }
-function openBeamer(){
-  if(!openHost("class")) return;
-  MODE = "beamer";
-  $("bCode").textContent = "…"; $("bPlayers").innerHTML = ""; $("qrBeamer").innerHTML = "";
-  beamerView(false); show("beamer"); renderLobby();
+function openGroup(name){
+  cleanup(); MODE = "group"; newHost("group", name);
+  groupWaitView(); hostPeer(); saveState();
 }
-function hostReady(){
+function openBeamer(){
+  cleanup(); MODE = "beamer"; newHost("class");
+  $("bCode").textContent = "…"; $("bPlayers").innerHTML = ""; $("qrBeamer").innerHTML = "";
+  beamerView(false); show("beamer"); renderLobby(); hostPeer(); saveState();
+}
+function restoreHost(st){
+  const h = st.host;
+  MODE = st.mode;
+  H = { kind:h.kind, session:h.session, conns:new Map(),
+        players:new Map(h.players.map(([k,p])=>[k, {name:p.name, online:k==="host"}])),   // alle anderen: bis zur Rückkehr «offline»
+        round:h.round, code:h.code, results:new Map(h.results), running:h.running,
+        roundStart: h.roundStartWall ? perfFromWall(h.roundStartWall) : (h.running ? performance.now() : 0),
+        announced:true, tries:0 };
   if(H.kind==="class"){
-    $("bCode").textContent = $("bCode2").textContent = fmtSession(H.session);
-    makeQR($("qrBeamer"), 340);
-  } else {
-    $("waitCode").textContent = fmtSession(H.session);
-    makeQR($("qrGroup"), 300);
-  }
-  renderLobby();
+    $("bCode").textContent = $("bCode2").textContent = fmtSession(H.session); $("qrBeamer").innerHTML = "";
+    beamerView(H.round>0); show("beamer");
+    if(H.round){ $("bPuzzle").textContent = H.code; renderBeamerRank(boardEntries()); } else renderLobby();
+  } else if(st.game && st.screen==="game"){
+    LB = {entries:boardEntries(), you:"host"}; playPuzzle(st.game.code, st.game);
+  } else { groupWaitView(); renderLobby(); }
+  netStatus("Verbinde wieder…"); hostPeer();
 }
 function hostConn(c){
   c.on("data", d=>hostData(c, d));
-  c.on("close", ()=>{ if(!H) return; H.conns.delete(c.peer); H.players.delete(c.peer); renderLobby(); broadcastBoard(); });
+  c.on("close", ()=>hostLost(c));
   c.on("error", ()=>{});
+}
+function hostLost(c){   // Verbindung weg (F5, Handy gesperrt, Funkloch): Platz freihalten
+  if(!H || !c.pid || H.conns.get(c.pid)!==c) return;
+  H.conns.delete(c.pid);
+  const pl = H.players.get(c.pid); if(!pl) return;
+  pl.online = false; renderLobby(); broadcastBoard();
+  setTimeout(()=>{   // in der Warteansicht nach 30 s ohne Rückkehr entfernen
+    if(H && !H.round && H.players.get(c.pid)===pl && !pl.online){ H.players.delete(c.pid); renderLobby(); }
+  }, 30000);
 }
 function hostData(c, d){
   if(!H || !d || typeof d!=="object") return;
   if(d.t==="hello"){
-    if(H.kind==="group" && H.players.size>=GROUP_MAX && !H.players.has(c.peer)){ c.send({t:"full"}); return; }
-    H.conns.set(c.peer, c); H.players.set(c.peer, String(d.name||"?").slice(0,16));
+    const pid = String(d.pid || c.peer).slice(0,40);
+    if(H.kind==="group" && !H.players.has(pid) && H.players.size>=GROUP_MAX){ c.send({t:"full"}); return; }
+    const old = H.conns.get(pid); if(old && old!==c) try{ old.close(); }catch(e){}
+    c.pid = pid; H.conns.set(pid, c);
+    H.players.set(pid, {name:String(d.name||"?").slice(0,16), online:true});
     c.send({t:"welcome", kind:H.kind});
-    renderLobby();
-    if(H.running){ c.send({t:"start", round:H.round, code:H.code}); broadcastBoard(); }   // Nachzügler steigen direkt ein
+    if(H.round && d.round===H.round && d.ms!=null) hostRecord(pid, Math.max(0, +d.ms||0));   // war schon fertig
+    if(H.round && d.round!==H.round && (H.running || H.kind==="group")) c.send({t:"start", round:H.round, code:H.code});   // Nachzügler
+    renderLobby(); broadcastBoard(); return;
   }
-  if(d.t==="done" && d.round===H.round && H.running) hostRecord(c.peer, Math.max(0, +d.ms||0));
+  if(!c.pid) return;
+  if(d.t==="done" && d.round===H.round) hostRecord(c.pid, Math.max(0, +d.ms||0));
+  if(d.t==="leave"){ H.conns.delete(c.pid); H.players.delete(c.pid); renderLobby(); broadcastBoard(); }
 }
 function hostRecord(id, ms){
   if(H.results.has(id)) return;
   H.results.set(id, ms); broadcastBoard();
-  if(H.kind==="class" && [...H.players.keys()].every(k=>H.results.has(k))) H.running = false;   // Timer anhalten
+  // Beamer-Uhr anhalten, wenn alle (die noch verbunden sind) fertig sind
+  if(H.kind==="class" && [...H.players].every(([k,p])=>H.results.has(k) || !p.online)) H.running = false;
+  saveState();
 }
 function renderLobby(){
   if(!H) return;
-  const names = [...H.players.values()];
-  for(const c of H.conns.values()) try{ c.send({t:"lobby", names}); }catch(e){}
-  const pills = names.map(n=>`<span class="pill">${esc(n)}</span>`).join("");
+  const all = [...H.players.values()], online = all.filter(p=>p.online).map(p=>p.name);
+  for(const c of H.conns.values()) try{ c.send({t:"lobby", names:online}); }catch(e){}
+  const pills = all.map(p=>`<span class="pill${p.online?"":" off"}">${esc(p.name)}</span>`).join("");
   if(H.kind==="class"){
-    $("bPlayers").innerHTML = names.length
-      ? `<div class="muted" style="font-size:20px;margin-bottom:6px">${names.length} verbunden</div>${pills}`
+    if(H.round) return;
+    $("bPlayers").innerHTML = all.length
+      ? `<div class="muted" style="font-size:20px;margin-bottom:6px">${online.length} verbunden</div>${pills}`
       : `<div class="muted" style="font-size:20px">Noch niemand verbunden</div>`;
     fitBeamer();
-  } else if(H.round===0 && H.session){
+  } else if(H.round===0 && current()==="wait"){
     $("waitPlayers").innerHTML = pills;
-    const ready = H.players.size>=2;
+    const ready = online.length>=2;
     $("waitStart").style.display = ready ? "" : "none";
-    $("waitHint").textContent = ready
-      ? `${H.players.size} von ${GROUP_MAX} dabei. Starten oder auf weitere warten.`
+    $("waitHint").textContent = !H.announced ? "Verbinde…" : ready
+      ? `${online.length} von ${GROUP_MAX} dabei. Starten oder auf weitere warten.`
       : `Die anderen tippen auf dem Startbildschirm «Mitmachen» und geben die Zahl ein, oder scannen den QR-Code. Bis ${GROUP_MAX} Personen.`;
   }
 }
 function boardEntries(){
-  return [...H.players.entries()].map(([k,name])=>({k, name, ms:H.results.has(k)?H.results.get(k):null}))
+  return [...H.players.entries()].map(([k,p])=>({k, name:p.name, ms:H.results.has(k)?H.results.get(k):null}))
     .sort((a,b)=>(a.ms==null)-(b.ms==null) || (a.ms??0)-(b.ms??0) || a.name.localeCompare(b.name));
 }
 function broadcastBoard(){
@@ -934,7 +1047,9 @@ function broadcastBoard(){
 }
 async function startRound(){
   if(!H) return;
-  if(H.kind==="class" && H.players.size===0 && !await ask("Noch niemand verbunden. Trotzdem starten?", "Starten", "Warten")) return;
+  const online = [...H.players.values()].filter(p=>p.online).length;
+  if(H.kind==="class" && online===0 && !await ask("Noch niemand verbunden. Trotzdem starten?", "Starten", "Warten")) return;
+  for(const [k,p] of H.players) if(!p.online && k!=="host") H.players.delete(k);   // wer weg ist, fällt raus
   H.round++; H.code = newPuzzle(); H.results = new Map(); H.running = true; H.roundStart = 0;
   for(const c of H.conns.values()) try{ c.send({t:"start", round:H.round, code:H.code}); }catch(e){}
   if(H.kind==="class"){
@@ -942,10 +1057,11 @@ async function startRound(){
     $("bPuzzle").textContent = H.code; $("bTimer").textContent = "0:00.0";
     $("bNext").disabled = true; setTimeout(()=>{ if(H) $("bNext").disabled = false; }, 5000);
     renderBeamerRank(boardEntries());
-    setTimeout(()=>countdown(()=>{ if(H) H.roundStart = performance.now(); }), 700);
+    setTimeout(()=>countdown(()=>{ if(H){ H.roundStart = performance.now(); saveState(); } }), 700);
   } else {
     LB = null; playPuzzle(H.code);
   }
+  saveState();
 }
 function beamerView(running){
   $("beamer").classList.toggle("running", running);
@@ -953,11 +1069,12 @@ function beamerView(running){
 }
 function renderBeamerRank(entries){
   const done = entries.filter(x=>x.ms!=null), wait = entries.filter(x=>x.ms==null);
+  const off = k => H && H.players.get(k) && !H.players.get(k).online;
   $("bRank").innerHTML = done.length
     ? done.map((x,i)=>`<div class="r"><span class="n">${i+1}</span><span class="nm">${esc(x.name)}</span><span class="t">${fmt(x.ms)}</span></div>`).join("")
     : `<div class="none">Noch niemand fertig…</div>`;
   $("bProg").textContent = entries.length ? `${done.length} / ${entries.length} fertig` : "";
-  $("bWait").innerHTML = wait.length ? `Noch am Lösen: ` + wait.map(x=>`<span class="pill">${esc(x.name)}</span>`).join("") : "";
+  $("bWait").innerHTML = wait.length ? `Noch am Lösen: ` + wait.map(x=>`<span class="pill${off(x.k)?" off":""}">${esc(x.name)}</span>`).join("") : "";
   fitBeamer();
 }
 function fitBeamer(){   // bei vielen Namen alles etwas kleiner, damit der Beamer nie scrollt
@@ -966,39 +1083,80 @@ function fitBeamer(){   // bei vielen Namen alles etwas kleiner, damit der Beame
   while(Math.max(b.offsetHeight, b.scrollHeight) > window.innerHeight && rs > 0.45){ rs = +(rs-0.05).toFixed(2); b.style.setProperty("--rs", rs); }
 }
 
-/* ================= Mitmachen (Spieler) ================= */
-
-function joinRound(session, name){
-  cleanup(); MODE = "player"; C = {session, name, conn:null, ok:false, round:0, kind:"group"};
-  $("waitTitle").textContent = "Verbinde…"; $("waitCard").style.display = "none";
-  $("waitStart").style.display = "none"; $("waitPlayers").innerHTML = "";
-  $("waitHint").textContent = "Mitmach-Code " + fmtSession(session); $("waitLeave").textContent = "Verlassen";
-  show("wait");
-  const fail = () => { if(MODE==="player" && C && !C.ok) homeError("Keine Verbindung möglich. Tippe den Rätsel-Code vom Beamer ein, dann spielst du dasselbe Rätsel.", "puzzle"); };
-  if(typeof Peer==="undefined") return fail();
-  peer = new Peer();
-  const timeout = setTimeout(fail, 10000);
-  peer.on("open", ()=>{
-    const c = peer.connect(PEER_PREFIX + session, {reliable:true}); C.conn = c;
-    c.on("open", ()=>{ C.ok = true; clearTimeout(timeout); c.send({t:"hello", name});
-      $("waitTitle").textContent = "Verbunden"; $("waitHint").textContent = "Warte, bis die Runde startet…"; });
-    c.on("data", playerData);
-    c.on("close", ()=>{ if(MODE==="player" && C.ok) msg("Die Runde wurde beendet. Du kannst das aktuelle Rätsel noch fertig spielen."); });
+/* ================= Mitmachen (Spieler) =================
+   Bricht die Verbindung ab, wird alle 2.5 s neu verbunden (bis ca. 4 Minuten).
+   Nur wenn die Lehrperson/Gruppe absichtlich beendet («bye»), wird aufgehört. */
+function joinRound(session, name, saved){
+  cleanup(); MODE = "player";
+  C = { session, name, pid: (saved && saved.pid) || myPid(), conn:null, everOk:!!saved, ended:false,
+        round:(saved && saved.round)||0, kind:(saved && saved.kind)||"group", tries:0, retryT:null, firstT:null };
+  if(saved && saved.game && saved.screen==="game"){ LB = saved.lb || null; playPuzzle(saved.game.code, saved.game); }
+  else {
+    $("waitTitle").textContent = "Verbinde…"; $("waitCard").style.display = "none";
+    $("waitStart").style.display = "none"; $("waitPlayers").innerHTML = "";
+    $("waitHint").textContent = "Mitmach-Code " + fmtSession(session); $("waitLeave").textContent = "Verlassen";
+    show("wait");
+  }
+  if(saved) netStatus("Verbinde wieder…");
+  else C.firstT = setTimeout(firstFail, 10000);
+  saveState(); reconnectPlayer();
+}
+function firstFail(){   // allererster Versuch klappt nicht: Rätsel-Code als Ausweg anbieten
+  if(MODE==="player" && C && !C.everOk)
+    homeError("Keine Verbindung möglich. Tippe den Rätsel-Code vom Beamer ein, dann spielst du dasselbe Rätsel.", "puzzle");
+}
+function reconnectPlayer(){
+  if(MODE!=="player" || !C || C.ended || C.conn) return;
+  if(typeof Peer==="undefined") return C.everOk ? retryPlayer() : firstFail();
+  if(peer && !peer.destroyed && peer.open) return connectHost();
+  if(peer && !peer.destroyed && peer.disconnected){ try{ peer.reconnect(); }catch(e){} return retryPlayer(); }
+  try{ peer && peer.destroy(); }catch(e){}
+  const me = new Peer(); peer = me;
+  me.on("open", ()=>{ if(peer===me) connectHost(); });
+  me.on("disconnected", ()=>{ if(peer===me && !me.destroyed) try{ me.reconnect(); }catch(e){} });
+  me.on("error", err=>{
+    if(peer!==me || MODE!=="player" || !C) return;
+    if(err.type==="peer-unavailable" && !C.everOk)
+      return homeError("Keine Runde mit dieser Zahl gefunden. Bitte nochmals prüfen.", "join");
+    retryPlayer();
   });
-  peer.on("error", err=>{
-    clearTimeout(timeout);
-    if(MODE!=="player") return;
-    if(err.type==="peer-unavailable") return homeError("Keine Runde mit dieser Zahl gefunden. Bitte nochmals prüfen.", "join");
-    fail();
+}
+function connectHost(){
+  if(MODE!=="player" || !C || !peer || C.conn) return;
+  const c = peer.connect(PEER_PREFIX + C.session, {reliable:true});
+  const t = setTimeout(()=>{ if(C && C.conn!==c){ try{ c.close(); }catch(e){} retryPlayer(); } }, 6000);
+  c.on("open", ()=>{
+    clearTimeout(t);
+    if(MODE!=="player" || !C){ try{ c.close(); }catch(e){} return; }
+    C.conn = c; C.everOk = true; C.tries = 0; clearTimeout(C.firstT); netStatus("");
+    const fin = G && G.done && current()==="game";
+    c.send({t:"hello", pid:C.pid, name:C.name, round:C.round, ms: fin ? G.ms : null});
+    if(current()==="wait"){ $("waitTitle").textContent = "Verbunden"; $("waitHint").textContent = "Warte, bis die Runde startet…"; }
   });
+  c.on("data", playerData);
+  c.on("close", ()=>{ clearTimeout(t); if(C && C.conn===c){ C.conn = null; retryPlayer(); } });
+  c.on("error", ()=>{});
+}
+function retryPlayer(){
+  if(MODE!=="player" || !C || C.ended || C.retryT || C.conn) return;
+  if(!C.everOk) return;   // vor der ersten Verbindung entscheidet firstFail()
+  if(++C.tries > 100){ netStatus(""); msg("Die Verbindung zur Runde ist verloren. Du kannst das Rätsel noch fertig spielen."); return; }
+  netStatus("Verbindung unterbrochen · verbinde neu…");
+  C.retryT = setTimeout(()=>{ if(C){ C.retryT = null; reconnectPlayer(); } }, 2500);
 }
 const sendToHost = d => { try{ C && C.conn && C.conn.send(d); }catch(e){} };
 function playerData(d){
-  if(!d || typeof d!=="object" || MODE!=="player") return;
+  if(!d || typeof d!=="object" || MODE!=="player" || !C) return;
   if(d.t==="full")    return homeError(`Diese Gruppe ist schon voll (höchstens ${GROUP_MAX}).`, "join");
+  if(d.t==="bye"){
+    C.ended = true; netStatus("");
+    if(current()==="game") msg("Die Runde wurde beendet. Du kannst das aktuelle Rätsel noch fertig spielen.");
+    else { goHome(); msg("Die Runde wurde beendet."); }
+    return;
+  }
   if(d.t==="welcome") C.kind = d.kind;
   if(d.t==="lobby")   $("waitPlayers").innerHTML = d.names.map(n=>`<span class="pill">${esc(n)}</span>`).join("");
-  if(d.t==="start"){ C.round = d.round; LB = null; playPuzzle(d.code); }
+  if(d.t==="start" && !(d.round===C.round && current()==="game")){ C.round = d.round; LB = null; playPuzzle(d.code); saveState(); }
   if(d.t==="board" && d.round===C.round){ LB = {entries:d.entries, you:d.you}; renderLeaderboard(); }
 }
 function renderLeaderboard(){   // nur im Ergebnisbereich sichtbar, also nach dem eigenen Lösen
@@ -1014,9 +1172,13 @@ setAppHeight(); renderBests();
 $("codeIn").addEventListener("input", updateCodeBtn);
 $("codeIn").addEventListener("keydown", e=>{ if(e.key==="Enter") enterCode(); });
 $("nameIn").addEventListener("keydown", e=>{ if(e.key==="Enter") $("nameGo").click(); });
-(function(){   // Links: ?p=E83H (Rätsel) oder ?join=482913 (Mitmachen)
+(function(){
+  // 1. Nach F5: gespeicherten Stand dieses Tabs wiederherstellen
+  if(restore(tabStore.get("gsq-state"))) return;
+  // 2. Links: ?beamer (Klassenrunde öffnen), ?p=E83H (Rätsel), ?join=482913 (Mitmachen)
   const q = new URLSearchParams(location.search), p = (q.get("p")||"").toUpperCase(), j = q.get("join")||"";
-  if(decode(p)) playSolo(p);
+  if(q.has("beamer")) openBeamer();
+  else if(decode(p)) playSolo(p);
   else if(/^\d{6}$/.test(j)) askName("join", j);
 })();
 </script>
